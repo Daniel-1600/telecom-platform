@@ -1,0 +1,33 @@
+info:
+  version: 1.0.0
+  description: NRF initial local configuration
+
+configuration:
+  serviceNameList:
+    - nrf
+  sbi:
+    scheme: http
+    registerIPv4: nrf  # Container name
+    bindIPv4: 0.0.0.0
+    port: 8000
+    name: nrf
+  time:
+    t3502:
+      value: 60
+      unit: seconds
+  default:
+    plmn:
+      mcc: "208"  # France
+      mnc: "93"
+    sst: 1
+    sd: 0x010203
+  nrf:
+    sbi:
+      scheme: http
+      registerIPv4: nrf
+      bindIPv4: 0.0.0.0
+      port: 8000
+      name: nrf
+  mongodb:
+    name: free5gc
+    url: mongodb://admin:free5gc@db:27017

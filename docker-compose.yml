@@ -26,6 +26,159 @@ services:
     networks:
       - taas-network
 
+  db:
+    image: mongo:5.0
+    container_name: free5gc-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: free5gc
+    volumes:
+      - free5gc_dbdata:/data/db
+    networks:
+      - taas-network
+
+  free5gc-nrf:
+    container_name: nrf
+    image: free5gc/nrf:v4.2.1
+    command: ./nrf -c ./config/nrfcfg.yaml
+    expose:
+      - "8000"
+    volumes:
+      - ./deployments/free5gc/config:/free5gc/config
+    environment:
+      GIN_MODE: release
+    networks:
+      - taas-network
+    depends_on:
+      - db
+
+  free5gc-amf:
+    container_name: amf
+    image: free5gc/amf:v4.2.1
+    command: ./amf -c ./config/amfcfg.yaml
+    expose:
+      - "8000"
+    volumes:
+      - ./deployments/free5gc/config:/free5gc/config
+    environment:
+      GIN_MODE: release
+    networks:
+      - taas-network
+    depends_on:
+      - db
+      - free5gc-nrf
+
+  free5gc-smf:
+    container_name: smf
+    image: free5gc/smf:v4.2.1
+    command: ./smf -c ./config/smfcfg.yaml
+    expose:
+      - "8000"
+    volumes:
+      - ./deployments/free5gc/config:/free5gc/config
+    environment:
+      GIN_MODE: release
+    networks:
+      - taas-network
+    depends_on:
+      - db
+      - free5gc-nrf
+
+  free5gc-upf:
+    container_name: upf
+    image: free5gc/upf:v4.2.1
+    command: bash -c "./upf-iptables.sh && ./upf -c ./config/upfcfg.yaml"
+    volumes:
+      - ./deployments/free5gc/config:/free5gc/config
+      - ./deployments/free5gc/upf-iptables.sh:/free5gc/upf-iptables.sh
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - taas-network
+    depends_on:
+      - free5gc-smf
+
+  free5gc-udr:
+    container_name: udr
+    image: free5gc/udr:v4.2.1
+    command: ./udr -c ./config/udrcfg.yaml
+    expose:
+      - "8000"
+    volumes:
+      - ./deployments/free5gc/config:/free5gc/config
+    environment:
+      GIN_MODE: release
+    networks:
+      - taas-network
+    depends_on:
+      - db
+      - free5gc-nrf
+
+  free5gc-udm:
+    container_name: udm
+    image: free5gc/udm:v4.2.1
+    command: ./udm -c ./config/udmcfg.yaml
+    expose:
+      - "8000"
+    volumes:
+      - ./deployments/free5gc/config:/free5gc/config
+    environment:
+      GIN_MODE: release
+    networks:
+      - taas-network
+    depends_on:
+      - db
+      - free5gc-nrf
+
+  free5gc-ausf:
+    container_name: ausf
+    image: free5gc/ausf:v4.2.1
+    command: ./ausf -c ./config/ausfcfg.yaml
+    expose:
+      - "8000"
+    volumes:
+      - ./deployments/free5gc/config:/free5gc/config
+    environment:
+      GIN_MODE: release
+    networks:
+      - taas-network
+    depends_on:
+      - db
+      - free5gc-nrf
+
+  free5gc-nssf:
+    container_name: nssf
+    image: free5gc/nssf:v4.2.1
+    command: ./nssf -c ./config/nssfcfg.yaml
+    expose:
+      - "8000"
+    volumes:
+      - ./deployments/free5gc/config:/free5gc/config
+    environment:
+      GIN_MODE: release
+    networks:
+      - taas-network
+    depends_on:
+      - db
+      - free5gc-nrf
+
+  free5gc-pcf:
+    container_name: pcf
+    image: free5gc/pcf:v4.2.1
+    command: ./pcf -c ./config/pcfcfg.yaml
+    expose:
+      - "8000"
+    volumes:
+      - ./deployments/free5gc/config:/free5gc/config
+    environment:
+      GIN_MODE: release
+    networks:
+      - taas-network
+    depends_on:
+      - db
+      - free5gc-nrf
+
   api-server:
     build:
       context: .
@@ -93,6 +246,8 @@ volumes:
   mongodb_data:
     driver: local
   redis_data:
+    driver: local
+  free5gc_dbdata:
     driver: local
 
 networks:

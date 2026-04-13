@@ -145,8 +145,23 @@ db-setup: ## Set up MongoDB and Redis
 	@echo "$(GREEN)Database setup complete!$(RESET)"
 
 # Free5GC integration
-free5gc-setup: ## Set up free5GC (requires separate installation)
-	@echo "$(YELLOW)Please install free5GC separately.$(RESET)"
-	@echo "Visit: https://free5gc.org/guide/"
+free5gc-setup: ## Set up free5GC configuration files
+	@echo "$(CYAN)Setting up free5GC configuration...$(RESET)"
+	@mkdir -p deployments/free5gc/config
+	@echo "$(GREEN)free5GC configuration ready!$(RESET)"
+	@echo "$(YELLOW)To start free5GC: docker-compose up -d db free5gc-nrf free5gc-amf free5gc-smf free5gc-upf$(RESET)"
+
+free5gc-start: ## Start free5GC core network services
+	@echo "$(CYAN)Starting free5GC core network...$(RESET)"
+	@docker-compose up -d db free5gc-nrf free5gc-amf free5gc-smf free5gc-upf free5gc-udr free5gc-udm free5gc-ausf free5gc-nssf free5gc-pcf
+	@echo "$(GREEN)free5GC services started!$(RESET)"
+
+free5gc-stop: ## Stop free5GC services
+	@echo "$(CYAN)Stopping free5GC services...$(RESET)"
+	@docker-compose stop db free5gc-nrf free5gc-amf free5gc-smf free5gc-upf free5gc-udr free5gc-udm free5gc-ausf free5gc-nssf free5gc-pcf
+	@echo "$(GREEN)free5GC services stopped!$(RESET)"
+
+free5gc-logs: ## Show free5GC logs
+	@docker-compose logs -f free5gc-nrf free5gc-amf free5gc-smf
 
 .DEFAULT_GOAL := help

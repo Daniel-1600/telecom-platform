@@ -119,8 +119,3 @@ func (a *AMFClient) NotifySubscriberUpdate(ctx context.Context, imsi models.IMSI
 
 	return nil
 }
-
-// generateRequestID generates a unique request ID
-func generateRequestID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
-}

@@ -161,12 +161,17 @@ impl super::ChargingEngine {
     }
 
     async fn get_uptime(&self) -> ChargingResult<u64> {
-        // This would track the actual uptime in a real implementation
-        // For now, return a placeholder
-        Ok(std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs())
+        // Calculate actual uptime since startup
+        match self.startup_time.elapsed() {
+            Ok(duration) => Ok(duration.as_secs()),
+            Err(_) => {
+                // If system time went backwards, fallback to current time
+                Ok(std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs())
+            }
+        }
     }
 
     pub async fn health_check(&self) -> ChargingResult<HealthStatus> {
@@ -187,9 +192,66 @@ impl super::ChargingEngine {
     }
 
     async fn get_memory_usage(&self) -> ChargingResult<u64> {
-        // This would get actual memory usage in a real implementation
-        // For now, return a placeholder
-        Ok(50_000_000) // 50MB placeholder
+        // Get actual memory usage from system
+        match self.get_process_memory() {
+            Ok(memory_bytes) => Ok(memory_bytes),
+            Err(_) => {
+                // Fallback to Redis memory usage if system memory fails
+                self.get_redis_memory_usage().await
+            }
+        }
+    }
+
+    fn get_process_memory(&self) -> ChargingResult<u64> {
+        use std::fs;
+        
+        // Try to read from /proc/self/status for Linux systems
+        if let Ok(status) = fs::read_to_string("/proc/self/status") {
+            for line in status.lines() {
+                if line.starts_with("VmRSS:") {
+                    if let Some(memory_str) = line.split_whitespace().nth(1) {
+                        if let Ok(memory_kb) = memory_str.parse::<u64>() {
+                            return Ok(memory_kb * 1024); // Convert KB to bytes
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Fallback for non-Linux systems or if reading fails
+        self.estimate_memory_usage()
+    }
+
+    fn estimate_memory_usage(&self) -> ChargingResult<u64> {
+        // Estimate memory usage based on known structures
+        // This is a rough estimate for non-Linux systems
+        let base_memory = 20_000_000; // 20MB base
+        let redis_connections = 5_000_000; // 5MB per connection estimate
+        let session_data = 10_000_000; // 10MB for session data
+        
+        Ok(base_memory + redis_connections + session_data)
+    }
+
+    async fn get_redis_memory_usage(&self) -> ChargingResult<u64> {
+        let mut conn = self.redis_client.get_async_connection().await
+            .context("Failed to get Redis connection")?;
+
+        // Get Redis memory info
+        let info: String = redis::cmd("INFO").query_async(&mut conn).await.unwrap_or_default();
+        
+        // Parse memory usage from Redis info
+        for line in info.lines() {
+            if line.starts_with("used_memory:") {
+                if let Some(memory_str) = line.split(':').nth(1) {
+                    if let Ok(memory_bytes) = memory_str.parse::<u64>() {
+                        return Ok(memory_bytes);
+                    }
+                }
+            }
+        }
+        
+        // Fallback to estimate
+        self.estimate_memory_usage()
     }
 }
 

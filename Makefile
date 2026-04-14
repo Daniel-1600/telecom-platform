@@ -164,4 +164,12 @@ free5gc-stop: ## Stop free5GC services
 free5gc-logs: ## Show free5GC logs
 	@docker-compose logs -f free5gc-nrf free5gc-amf free5gc-smf
 
+free5gc-test: ## Test free5GC configuration
+	@echo "$(CYAN)Testing free5GC configuration...$(RESET)"
+	@bash scripts/test-free5gc.sh
+
+verify: ## Verify complete deployment status
+	@echo "$(CYAN)Verifying deployment...$(RESET)"
+	@bash scripts/verify-deployment.sh
+
 .DEFAULT_GOAL := help

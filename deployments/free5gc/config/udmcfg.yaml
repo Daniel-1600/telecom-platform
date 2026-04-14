@@ -1,0 +1,36 @@
+info:
+  version: 1.0.0
+  description: UDM initial local configuration
+
+configuration:
+  udmName: UDM
+  sbi:
+    scheme: http
+    registerIPv4: udm
+    bindIPv4: 0.0.0.0
+    port: 8000
+    name: udm
+  nrf:
+    scheme: http
+    IPv4Addr: nrf
+    port: 8000
+  serviceList:
+    - serviceName: nudm-sdm
+      version: 2.0.0
+      scheme: http
+      bindIPv4: 0.0.0.0
+      port: 8000
+    - serviceName: nudm-uecm
+      version: 2.0.0
+      scheme: http
+      bindIPv4: 0.0.0.0
+      port: 8000
+    - serviceName: nudm-ueau
+      version: 2.0.0
+      scheme: http
+      bindIPv4: 0.0.0.0
+      port: 8000
+  locality: area01
+  mongodb:
+    name: free5gc
+    url: mongodb://admin:free5gc@db:27017

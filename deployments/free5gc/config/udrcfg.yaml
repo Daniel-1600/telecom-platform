@@ -1,0 +1,26 @@
+info:
+  version: 1.0.0
+  description: UDR initial local configuration
+
+configuration:
+  udrName: UDR
+  sbi:
+    scheme: http
+    registerIPv4: udr
+    bindIPv4: 0.0.0.0
+    port: 8000
+    name: udr
+  nrf:
+    scheme: http
+    IPv4Addr: nrf
+    port: 8000
+  serviceList:
+    - serviceName: nudr-dr
+      version: 2.0.0
+      scheme: http
+      bindIPv4: 0.0.0.0
+      port: 8000
+  locality: area01
+  mongodb:
+    name: free5gc
+    url: mongodb://admin:free5gc@db:27017

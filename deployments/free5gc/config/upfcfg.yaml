@@ -1,0 +1,25 @@
+info:
+  version: 1.0.0
+  description: UPF initial local configuration
+
+configuration:
+  upf:
+    pfcp:
+      addr: upf
+      nodeID: upf
+    gtpu:
+      addr: upf
+      ifname: gtpif
+    dnn:
+      - dnn: internet
+        cidr: 10.60.0.0/16
+        nat: true
+      - dnn: internet2
+        cidr: 10.61.0.0/16
+        nat: true
+    session:
+      - type: IPv4
+        pool: 10.60.0.1-10.60.255.254
+    metrics:
+      addr: upf
+      port: 9090

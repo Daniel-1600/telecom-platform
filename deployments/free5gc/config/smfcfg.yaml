@@ -1,0 +1,65 @@
+info:
+  version: 1.0.0
+  description: SMF initial local configuration
+
+configuration:
+  smfName: SMF
+  sbi:
+    scheme: http
+    registerIPv4: smf
+    bindIPv4: 0.0.0.0
+    port: 8000
+    name: smf
+  nrf:
+    scheme: http
+    IPv4Addr: nrf
+    port: 8000
+  serviceList:
+    - serviceName: nsmf-pdusession
+      version: 2.0.0
+      scheme: http
+      bindIPv4: 0.0.0.0
+      port: 8000
+    - serviceName: nsmf-event-exposure
+      version: 2.0.0
+      scheme: http
+      bindIPv4: 0.0.0.0
+      port: 8000
+  locality: area01
+  pfcp:
+    addr: smf
+  dnn:
+    - dnn: internet
+      dns:
+        ipv4: "8.8.8.8"
+        ipv6: "2001:4860:4860::8888"
+    - dnn: internet2
+      dns:
+        ipv4: "8.8.4.4"
+        ipv6: "2001:4860:4860::8844"
+  snssaiInfo:
+    - sNssai:
+        sst: 1
+        sd: 0x010203
+      dnnList:
+        - internet
+        - internet2
+  upf:
+    - addr: upf
+      nodeID: upf
+  n4Configuration:
+    pfcp:
+      addr: smf
+  session:
+    - type: IPv4
+      ambr:
+        uplink: 1 Gbps
+        downlink: 1 Gbps
+      pool:
+        - range: "10.60.0.1-10.60.255.254"
+      static:
+        - "10.60.0.100"
+      dns:
+        ipv4: "8.8.8.8"
+        ipv6: "2001:4860:4860::8888"
+      mtu: 1400

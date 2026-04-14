@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"crypto/aes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -239,14 +240,14 @@ func (s *SubscriberService) generateAuthKeys() (string, string, error) {
 		return "", "", err
 	}
 
-	// Generate OP (Operator variant) - should be consistent across operator
-	// For production, this should come from operator configuration
-	op := make([]byte, 16)
-	if _, err := rand.Read(op); err != nil {
-		return "", "", err
+	// Get OP (Operator variant) from operator configuration
+	// This should be consistent across all subscribers for the same operator
+	op := s.getOperatorVariant()
+	if op == nil {
+		return "", "", fmt.Errorf("operator variant not configured")
 	}
 
-	// Generate OPc (derived from OP and K) using AES encryption
+	// Generate OPc (derived from OP and K) using AES-128 encryption
 	// OPc = AES-128(K, OP) where OP is encrypted with K
 	opc, err := s.generateOPc(key, op)
 	if err != nil {
@@ -256,21 +257,35 @@ func (s *SubscriberService) generateAuthKeys() (string, string, error) {
 	return hex.EncodeToString(key), hex.EncodeToString(opc), nil
 }
 
-// generateOPc derives OPc from OP and K using AES encryption
+// getOperatorVariant returns the operator variant (OP) from configuration
+func (s *SubscriberService) getOperatorVariant() []byte {
+	// In production, this should come from secure operator configuration
+	// For now, using a hardcoded OP for demonstration
+	// This should be the same across all subscribers for the same operator
+	op := make([]byte, 16)
+	copy(op, []byte("TelecomOP1234567")) // 16-byte operator variant
+	return op
+}
+
+// generateOPc derives OPc from OP and K using AES-128 encryption
 func (s *SubscriberService) generateOPc(k, op []byte) ([]byte, error) {
-	// In a real implementation, this would use AES-128 encryption
-	// For now, we'll use a simple XOR-based derivation as placeholder
-	// In production, this should use crypto/aes package properly
-
-	opc := make([]byte, 16)
-	for i := range 16 {
-		opc[i] = k[i] ^ op[i] // Simple XOR as placeholder
+	// Create AES-128 cipher block with key K
+	block, err := aes.NewCipher(k)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create AES cipher: %w", err)
 	}
 
-	// Apply additional transformation for better security
-	for i := range 16 {
-		opc[i] = opc[i] ^ byte(i)
+	// OPc = AES-128(K, OP) - encrypt OP with key K
+	opc := make([]byte, aes.BlockSize) // AES block size is 16 bytes
+
+	// Create ECB mode cipher (as per 3GPP specification for OPc derivation)
+	// In 3GPP, OPc is derived using AES-128 ECB mode
+	if len(op) != aes.BlockSize {
+		return nil, fmt.Errorf("OP must be 16 bytes for AES-128")
 	}
+
+	// Encrypt OP using ECB mode (single block)
+	block.Encrypt(opc, op)
 
 	return opc, nil
 }

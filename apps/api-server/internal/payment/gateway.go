@@ -104,6 +104,18 @@ type PaymentMethod struct {
 	Metadata    map[string]string `json:"metadata"`
 }
 
+// PaymentMethodDetails represents payment method details retrieved from token
+type PaymentMethodDetails struct {
+	PaymentMethodID string    `json:"paymentMethodId"`
+	Type            string    `json:"type"`
+	Last4           string    `json:"last4"`
+	Brand           string    `json:"brand"`
+	ExpiryMonth     int       `json:"expiryMonth"`
+	ExpiryYear      int       `json:"expiryYear"`
+	Fingerprint     string    `json:"fingerprint"`
+	CreatedAt       time.Time `json:"createdAt"`
+}
+
 // PaymentStatusType represents payment status
 type PaymentStatusType string
 

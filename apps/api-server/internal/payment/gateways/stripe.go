@@ -12,10 +12,12 @@ import (
 	"github.com/stripe/stripe-go/v82/invoice"
 	"github.com/stripe/stripe-go/v82/invoiceitem"
 	"github.com/stripe/stripe-go/v82/paymentintent"
+	"github.com/stripe/stripe-go/v82/paymentmethod"
 	"github.com/stripe/stripe-go/v82/refund"
 	"github.com/stripe/stripe-go/v82/webhook"
 
 	"github.com/nutcas3/telecom-platform/apps/api-server/internal/models"
+	"github.com/nutcas3/telecom-platform/apps/api-server/internal/payment"
 )
 
 // StripeGateway implements payment processing via Stripe
@@ -64,6 +66,38 @@ func (g *StripeGateway) ProcessPayment(ctx context.Context, req *PaymentRequest)
 		Amount:        req.Amount,
 		Currency:      req.Currency,
 		CreatedAt:     time.Unix(pi.Created, 0),
+	}, nil
+}
+
+// RetrievePaymentMethodFromToken retrieves payment method details from a Stripe token
+func (g *StripeGateway) RetrievePaymentMethodFromToken(ctx context.Context, token string) (*payment.PaymentMethodDetails, error) {
+	// Create payment method from token
+	params := &stripe.PaymentMethodParams{
+		Type: stripe.String("card"),
+		Card: &stripe.PaymentMethodCardParams{
+			Token: stripe.String(token),
+		},
+	}
+
+	pm, err := paymentmethod.New(params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create payment method from token: %w", err)
+	}
+
+	// Extract card details
+	if pm.Card == nil {
+		return nil, fmt.Errorf("no card details found in payment method")
+	}
+
+	return &payment.PaymentMethodDetails{
+		PaymentMethodID: pm.ID,
+		Type:            string(pm.Type),
+		Last4:           pm.Card.Last4,
+		Brand:           string(pm.Card.Brand),
+		ExpiryMonth:     int(pm.Card.ExpMonth),
+		ExpiryYear:      int(pm.Card.ExpYear),
+		Fingerprint:     pm.Card.Fingerprint,
+		CreatedAt:       time.Unix(pm.Created, 0),
 	}, nil
 }
 

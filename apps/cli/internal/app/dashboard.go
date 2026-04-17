@@ -11,6 +11,9 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/nutcas3/telecom-platform/apps/cli/internal/api"
+	"github.com/nutcas3/telecom-platform/apps/cli/internal/types"
 )
 
 type Dashboard struct {
@@ -21,6 +24,9 @@ type Dashboard struct {
 	quitting   bool
 	loading    bool
 	lastUpdate time.Time
+	client     *api.Client
+	connected  bool
+	statusMsg  string
 }
 
 type keyMap struct {
@@ -60,6 +66,12 @@ var defaultKeyMap = keyMap{
 }
 
 func NewDashboard() *Dashboard {
+	return NewDashboardWithConfig(nil)
+}
+
+// NewDashboardWithConfig builds a dashboard model wired to the telecom API via
+// the provided CLI configuration.
+func NewDashboardWithConfig(cfg *types.CLIConfig) *Dashboard {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
@@ -73,24 +85,64 @@ func NewDashboard() *Dashboard {
 		{Title: "Uptime", Width: 12},
 		{Title: "Version", Width: 10},
 	})
-	t.SetRows([]table.Row{
-		{"API Server", "Running", "45%", "256MB", "2h15m", "v1.0.0"},
-		{"Charging Engine", "Running", "23%", "128MB", "2h15m", "v1.0.0"},
-		{"Packet Gateway", "Running", "67%", "512MB", "2h15m", "v1.0.0"},
-		{"Web Dashboard", "Running", "12%", "64MB", "2h15m", "v1.0.0"},
-		{"Prometheus", "Running", "8%", "32MB", "2h15m", "v2.45.0"},
-		{"Grafana", "Running", "5%", "24MB", "2h15m", "v9.5.2"},
-	})
-
 	t.SetStyles(table.DefaultStyles())
 
-	return &Dashboard{
+	client := api.NewClient(cfg)
+	d := &Dashboard{
 		table:      t,
 		spinner:    s,
 		help:       help.New(),
 		keys:       defaultKeyMap,
 		lastUpdate: time.Now(),
+		client:     client,
+		connected:  client.IsConnected(),
 	}
+	d.populateRows()
+	return d
+}
+
+// populateRows fetches live service data from the API and falls back to
+// placeholder rows if the API is unreachable or empty.
+func (d *Dashboard) populateRows() {
+	services, err := d.client.ListServices()
+	if err != nil || len(services) == 0 {
+		if err != nil {
+			d.statusMsg = "API unreachable - showing sample data"
+		} else {
+			d.statusMsg = "API returned no services - showing sample data"
+		}
+		d.table.SetRows([]table.Row{
+			{"API Server", "Running", "45%", "256MB", "2h15m", "v1.0.0"},
+			{"Charging Engine", "Running", "23%", "128MB", "2h15m", "v1.0.0"},
+			{"Packet Gateway", "Running", "67%", "512MB", "2h15m", "v1.0.0"},
+			{"Web Dashboard", "Running", "12%", "64MB", "2h15m", "v1.0.0"},
+			{"Prometheus", "Running", "8%", "32MB", "2h15m", "v2.45.0"},
+			{"Grafana", "Running", "5%", "24MB", "2h15m", "v9.5.2"},
+		})
+		return
+	}
+
+	d.statusMsg = fmt.Sprintf("Connected to %s", clientEndpoint(d.client))
+	rows := make([]table.Row, 0, len(services))
+	for _, s := range services {
+		rows = append(rows, table.Row{
+			s.Name,
+			s.Status,
+			fmt.Sprintf("%.1f%%", s.CPU),
+			s.Memory,
+			s.Uptime,
+			s.Version,
+		})
+	}
+	d.table.SetRows(rows)
+}
+
+// clientEndpoint is a tiny accessor used only for the dashboard status line.
+func clientEndpoint(c *api.Client) string {
+	if c == nil {
+		return "(no client)"
+	}
+	return c.BaseURL()
 }
 
 func (d *Dashboard) Init() tea.Cmd {
@@ -185,7 +237,6 @@ func (d *Dashboard) titleView() string {
 func (d *Dashboard) footerView() string {
 	info := "Press '?' for help | 'r' to refresh | 'q' to quit"
 
-	// Calculate totals
 	totalServices := len(d.table.Rows())
 	runningServices := 0
 	for _, row := range d.table.Rows() {
@@ -194,36 +245,40 @@ func (d *Dashboard) footerView() string {
 		}
 	}
 
+	connectionStatus := "disconnected"
+	connectionColor := lipgloss.Color("196")
+	if d.connected {
+		connectionStatus = "connected"
+		connectionColor = lipgloss.Color("46")
+	}
+	connectionStyle := lipgloss.NewStyle().Foreground(connectionColor).Bold(true)
+	connection := fmt.Sprintf("API: %s (%s)", connectionStyle.Render(connectionStatus), clientEndpoint(d.client))
+
 	status := fmt.Sprintf("Services: %d/%d running", runningServices, totalServices)
+	statusLine := ""
+	if d.statusMsg != "" {
+		statusLine = "\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Italic(true).Padding(0, 2).Render(d.statusMsg)
+	}
 
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("241")).
 		Padding(0, 2)
 
-	return footerStyle.Render(fmt.Sprintf("%s | %s", info, status))
+	return footerStyle.Render(fmt.Sprintf("%s | %s | %s", info, status, connection)) + statusLine
 }
 
 func (d *Dashboard) refreshData() tea.Msg {
-	// Simulate data refresh
-	time.Sleep(500 * time.Millisecond)
 	d.loading = false
-
-	// Update with new data
-	newRows := []table.Row{
-		{"API Server", "Running", fmt.Sprintf("%d%%", 40+int(time.Now().Unix()%40)), "256MB", "2h15m", "v1.0.0"},
-		{"Charging Engine", "Running", fmt.Sprintf("%d%%", 20+int(time.Now().Unix()%30)), "128MB", "2h15m", "v1.0.0"},
-		{"Packet Gateway", "Running", fmt.Sprintf("%d%%", 60+int(time.Now().Unix()%30)), "512MB", "2h15m", "v1.0.0"},
-		{"Web Dashboard", "Running", fmt.Sprintf("%d%%", 10+int(time.Now().Unix()%20)), "64MB", "2h15m", "v1.0.0"},
-		{"Prometheus", "Running", fmt.Sprintf("%d%%", 5+int(time.Now().Unix()%10)), "32MB", "2h15m", "v2.45.0"},
-		{"Grafana", "Running", fmt.Sprintf("%d%%", 3+int(time.Now().Unix()%7)), "24MB", "2h15m", "v9.5.2"},
-	}
-
-	d.table.SetRows(newRows)
+	d.lastUpdate = time.Now()
+	d.connected = d.client.IsConnected()
+	d.populateRows()
 	return nil
 }
 
-func RunDashboard() {
-	p := tea.NewProgram(NewDashboard())
+// RunDashboard launches the interactive dashboard with an optional config so
+// the dashboard can connect to the correct API endpoint.
+func RunDashboard(cfg *types.CLIConfig) {
+	p := tea.NewProgram(NewDashboardWithConfig(cfg))
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running dashboard: %v\n", err)
 		os.Exit(1)

@@ -1,0 +1,126 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: telecom-platform-gateway
+  namespace: telecom-platform
+  labels:
+    app.kubernetes.io/name: telecom-platform-gateway
+    app.kubernetes.io/component: istio
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - api.telecom.local
+    - dashboard.telecom.local
+    - grafana.telecom.local
+    - prometheus.telecom.local
+    - kibana.telecom.local
+    tls:
+      httpsRedirect: true
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - api.telecom.local
+    - dashboard.telecom.local
+    - grafana.telecom.local
+    - prometheus.telecom.local
+    - kibana.telecom.local
+    tls:
+      mode: SIMPLE
+      credentialName: telecom-platform-tls
+      minProtocolVersion: TLSV1_2
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: telecom-platform-api
+  namespace: telecom-platform
+  labels:
+    app.kubernetes.io/name: telecom-platform-api
+    app.kubernetes.io/component: istio
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  hosts:
+  - api.telecom.local
+  gateways:
+  - telecom-platform-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: api-server
+        port:
+          number: 8000
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,connect-failure,refused-stream
+    fault:
+      delay:
+        percentage:
+          value: 0.1
+        fixedDelay: 5s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: telecom-platform-dashboard
+  namespace: telecom-platform
+  labels:
+    app.kubernetes.io/name: telecom-platform-dashboard
+    app.kubernetes.io/component: istio
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  hosts:
+  - dashboard.telecom.local
+  gateways:
+  - telecom-platform-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: web-dashboard
+        port:
+          number: 3000
+    timeout: 30s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: telecom-platform-api
+  namespace: telecom-platform
+  labels:
+    app.kubernetes.io/name: telecom-platform-api
+    app.kubernetes.io/component: istio
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  host: api-server
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      consecutiveErrors: 3
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    tls:
+      mode: ISTIO_MUTUAL

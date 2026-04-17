@@ -1,0 +1,49 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: telecom-platform-prod
+resources:
+- ../../kubernetes/00-namespace.yaml
+- ../../kubernetes/01-mongodb.yaml
+- ../../kubernetes/02-redis.yaml
+- ../../kubernetes/03-api-server.yaml
+- ../../kubernetes/04-charging-engine.yaml
+- ../../kubernetes/manifests/
+- ../istio/
+- ../backup/
+- ../monitoring/
+- ../elk-stack/
+patchesStrategicMerge:
+- api-server-prod-patch.yaml
+- charging-engine-prod-patch.yaml
+- mongodb-prod-patch.yaml
+namespace: telecom-platform-prod
+commonLabels:
+  app.kubernetes.io/environment: prod
+  app.kubernetes.io/managed-by: kustomize
+configMapGenerator:
+- name: telecom-platform-config
+  literals:
+  - LOG_LEVEL=warn
+  - ENVIRONMENT=production
+  - RATE_LIMIT_REQUESTS=1000
+  - RATE_LIMIT_WINDOW=60
+  - METRICS_ENABLED=true
+  - GDPR_ENABLED=true
+  - AUDIT_ENABLED=true
+secretGenerator:
+- name: telecom-platform-secrets
+  literals:
+  - DATABASE_URL=postgresql://postgres:prod123@postgres:5432/telecom_prod
+  - REDIS_URL=redis://redis:6379
+  - JWT_SECRET=prod-jwt-secret-key
+  - ENCRYPTION_KEY=prod-encryption-key-256bits
+replicas:
+- name: api-server
+  count: 3
+- name: charging-engine
+  count: 2
+- name: packet-gateway
+  count: 2
+- name: web-dashboard
+  count: 2

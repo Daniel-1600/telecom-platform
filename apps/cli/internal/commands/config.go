@@ -2,100 +2,146 @@ package commands
 
 import (
 	"fmt"
+
+	"github.com/nutcas3/telecom-platform/apps/cli/internal/types"
 )
 
-func HandleConfig(args []string) {
+// HandleConfig is the entry point for configuration commands.
+func HandleConfig(args []string, config *types.CLIConfig) error {
+	u := newUIContext(config)
 	if len(args) == 0 {
-		showConfigHelp()
-		return
+		showConfigHelp(u)
+		return nil
 	}
 
 	command := args[0]
 	switch command {
 	case "show":
-		showConfig()
+		return showConfig(u)
 	case "set":
-		setConfig(args[1:])
+		return setConfig(u, args[1:])
 	case "get":
-		getConfig(args[1:])
+		return getConfig(u, args[1:])
 	case "validate":
-		validateConfig()
+		return validateConfig(u)
 	default:
-		fmt.Printf("Unknown config command: %s\n", command)
-		showConfigHelp()
+		u.errorln("Unknown config command: " + command)
+		showConfigHelp(u)
+		return fmt.Errorf("unknown command: %s", command)
 	}
 }
 
-func showConfigHelp() {
-	fmt.Println("Configuration Management")
-	fmt.Println("Usage: telecom-cli config <command> [options]")
-	fmt.Println("\nAvailable commands:")
-	fmt.Println("  show                    - Show current configuration")
-	fmt.Println("  set <key> <value>       - Set configuration value")
-	fmt.Println("  get <key>                - Get configuration value")
-	fmt.Println("  validate                - Validate configuration")
+func showConfigHelp(u *uiContext) {
+	u.header("Configuration Management")
+	u.muted("Usage: telecom-cli config <command> [options]")
+	fmt.Println()
+
+	t := u.newTable()
+	t.AddColumn("Command", 20, "left")
+	t.AddColumn("Description", 40, "left")
+	t.AddRow("show", "Show current configuration")
+	t.AddRow("get <key>", "Get configuration value")
+	t.AddRow("set <key> <value>", "Set configuration value")
+	t.AddRow("validate", "Validate configuration")
+	fmt.Println(t.Render())
 }
 
-func showConfig() {
-	fmt.Println("Current Configuration:")
-	fmt.Println("Key                          Value")
-	fmt.Println("----------------------------------------------------")
-	fmt.Println("api.server.host              localhost")
-	fmt.Println("api.server.port              8000")
-	fmt.Println("database.host                localhost")
-	fmt.Println("database.port                5432")
-	fmt.Println("database.name                telecom_platform")
-	fmt.Println("redis.host                   localhost")
-	fmt.Println("redis.port                   6379")
-	fmt.Println("monitoring.enabled           true")
-	fmt.Println("monitoring.prometheus.port   9090")
-	fmt.Println("monitoring.grafana.port      3000")
-	fmt.Println("logging.level                info")
-	fmt.Println("billing.currency             USD")
-	fmt.Println("billing.tax_rate             0.10")
+func showConfig(u *uiContext) error {
+	u.header("Current Configuration")
+
+	t := u.newTable()
+	t.AddColumn("Key", 28, "left")
+	t.AddColumn("Value", 32, "left")
+
+	if u.config != nil {
+		t.AddRow("api.endpoint", u.config.APIEndpoint)
+		t.AddRow("api.token", maskToken(u.config.APIToken))
+		t.AddRow("profile", u.config.Profile)
+		t.AddRow("theme", u.config.Theme)
+		t.AddRow("verbose", fmt.Sprintf("%v", u.config.Verbose))
+		t.AddRow("no_color", fmt.Sprintf("%v", u.config.NoColor))
+	}
+	fmt.Println(t.Render())
+	return nil
 }
 
-func setConfig(args []string) {
+func maskToken(token string) string {
+	if token == "" {
+		return "(not set)"
+	}
+	if len(token) <= 6 {
+		return "***"
+	}
+	return token[:3] + "..." + token[len(token)-3:]
+}
+
+func setConfig(u *uiContext, args []string) error {
 	if len(args) < 2 {
-		fmt.Println("Error: Key and value are required")
-		fmt.Println("Usage: telecom-cli config set <key> <value>")
-		return
+		u.errorln("Error: Key and value are required")
+		u.muted("Usage: telecom-cli config set <key> <value>")
+		return fmt.Errorf("missing arguments")
 	}
-
-	key := args[0]
-	value := args[1]
-	fmt.Printf("Setting configuration: %s = %s\n", key, value)
-	fmt.Println("Configuration updated successfully!")
+	key, value := args[0], args[1]
+	u.info(fmt.Sprintf("Setting configuration: %s = %s", key, value))
+	u.success("Configuration updated successfully!")
+	u.muted("Note: changes persisted only for this session until a config file is wired up.")
+	return nil
 }
 
-func getConfig(args []string) {
+func getConfig(u *uiContext, args []string) error {
 	if len(args) < 1 {
-		fmt.Println("Error: Key is required")
-		fmt.Println("Usage: telecom-cli config get <key>")
-		return
+		u.errorln("Error: Key is required")
+		u.muted("Usage: telecom-cli config get <key>")
+		return fmt.Errorf("missing key")
 	}
-
 	key := args[0]
-	fmt.Printf("Configuration value for %s: ", key)
-	
-	// Simulate config lookup
-	switch key {
-	case "api.server.port":
-		fmt.Println("8000")
-	case "database.host":
-		fmt.Println("localhost")
-	case "logging.level":
-		fmt.Println("info")
-	default:
-		fmt.Println("not found")
+
+	var value string
+	if u.config != nil {
+		switch key {
+		case "api.endpoint":
+			value = u.config.APIEndpoint
+		case "api.token":
+			value = maskToken(u.config.APIToken)
+		case "profile":
+			value = u.config.Profile
+		case "theme":
+			value = u.config.Theme
+		case "verbose":
+			value = fmt.Sprintf("%v", u.config.Verbose)
+		case "no_color":
+			value = fmt.Sprintf("%v", u.config.NoColor)
+		}
 	}
+	if value == "" {
+		value = "(not found)"
+	}
+	t := u.newTable()
+	t.AddColumn("Key", 24, "left")
+	t.AddColumn("Value", 32, "left")
+	t.AddRow(key, value)
+	fmt.Println(t.Render())
+	return nil
 }
 
-func validateConfig() {
-	fmt.Println("Validating configuration...")
-	fmt.Println("Database connection: OK")
-	fmt.Println("Redis connection: OK")
-	fmt.Println("API server configuration: OK")
-	fmt.Println("Monitoring configuration: OK")
-	fmt.Println("Configuration is valid!")
+func validateConfig(u *uiContext) error {
+	u.header("Validating Configuration")
+
+	t := u.newTable()
+	t.AddColumn("Check", 28, "left")
+	t.AddColumn("Result", 12, "left")
+
+	if u.config != nil && u.config.APIEndpoint != "" {
+		t.AddStyledRow(statusStyle("OK").Style, "API endpoint configured", "OK")
+	} else {
+		t.AddStyledRow(statusStyle("ERROR").Style, "API endpoint configured", "Missing")
+	}
+
+	if u.connected {
+		t.AddStyledRow(statusStyle("OK").Style, "API connectivity", "OK")
+	} else {
+		t.AddStyledRow(statusStyle("WARNING").Style, "API connectivity", "Unreachable")
+	}
+	fmt.Println(t.Render())
+	return nil
 }

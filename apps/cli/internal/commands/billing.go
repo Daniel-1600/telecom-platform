@@ -3,255 +3,143 @@ package commands
 import (
 	"fmt"
 
-	"github.com/nutcas3/telecom-platform/apps/cli/internal/api"
-	"github.com/nutcas3/telecom-platform/apps/cli/internal/ui"
+	"github.com/nutcas3/telecom-platform/apps/cli/internal/types"
 )
 
-func HandleBilling(args []string, apiClient *api.Client) {
+// HandleBilling is the entry point for billing commands.
+func HandleBilling(args []string, config *types.CLIConfig) error {
+	u := newUIContext(config)
 	if len(args) == 0 {
-		showBillingHelp()
-		return
+		showBillingHelp(u)
+		return nil
 	}
 
-	// Check API connectivity
-	if !apiClient.IsConnected() {
-		colorizer := ui.NewColorizer(true)
-		warningMsg := colorizer.Colorize("Warning: Could not connect to API server. Using placeholder data.", ui.StyleWarning)
-		fmt.Println(warningMsg)
-		fmt.Println()
-	}
+	u.connectivityBanner()
 
 	command := args[0]
 	switch command {
 	case "invoices":
-		handleInvoices(apiClient)
+		return handleInvoices(u)
 	case "payments":
-		handlePayments(apiClient)
+		return handlePayments(u)
 	case "generate":
-		generateInvoice(apiClient, args[1:])
+		return generateInvoice(u, args[1:])
 	default:
-		colorizer := ui.NewColorizer(true)
-		errorMsg := colorizer.Colorize("Unknown billing command: ", ui.StyleError) +
-			colorizer.Colorize(command, ui.StyleArgument)
-		fmt.Println(errorMsg)
-		showBillingHelp()
+		u.errorln("Unknown billing command: " + command)
+		showBillingHelp(u)
+		return fmt.Errorf("unknown command: %s", command)
 	}
 }
 
-func showBillingHelp() {
-	colorizer := ui.NewColorizer(true)
-	iconRenderer := ui.NewIconRenderer(true, false)
-
-	title := colorizer.Colorize("Billing Management", ui.StyleHeader)
-	usage := colorizer.Colorize("Usage: telecom-cli billing <command> [options]", ui.StyleMuted)
-
-	fmt.Println(title)
-	fmt.Println(usage)
+func showBillingHelp(u *uiContext) {
+	u.header("Billing Management")
+	u.muted("Usage: telecom-cli billing <command> [options]")
 	fmt.Println()
 
-	// Create table for commands
-	table := ui.NewTable(colorizer, iconRenderer)
-	table.AddColumn("Command", 25, "left")
-	table.AddColumn("Description", 40, "left")
-
-	table.AddRow("invoices", "List all invoices")
-	table.AddRow("payments", "List all payments")
-	table.AddRow("generate <subscriber>", "Generate invoice for subscriber")
-
-	fmt.Println(colorizer.Colorize("Available commands:", ui.StyleHeader))
-	fmt.Println(table.Render())
+	t := u.newTable()
+	t.AddColumn("Command", 26, "left")
+	t.AddColumn("Description", 40, "left")
+	t.AddRow("invoices", "List all invoices")
+	t.AddRow("payments", "List all payments")
+	t.AddRow("generate <subscriber>", "Generate invoice for subscriber")
+	fmt.Println(t.Render())
 }
 
-func handleInvoices(apiClient *api.Client) {
-	colorizer := ui.NewColorizer(true)
-	iconRenderer := ui.NewIconRenderer(true, false)
+func handleInvoices(u *uiContext) error {
+	u.header("Recent Invoices")
 
-	title := colorizer.Colorize("Recent Invoices", ui.StyleHeader)
-	fmt.Println(title)
+	invoices, err := u.client.GetInvoices()
+	t := u.newTable()
+	t.AddColumn("Invoice #", 14, "left")
+	t.AddColumn("Date", 12, "left")
+	t.AddColumn("Status", 10, "left")
+	t.AddColumn("Amount", 10, "right")
+	t.AddColumn("Subscriber", 22, "left")
 
-	// Try to get real data from API
-	invoices, err := apiClient.GetInvoices()
 	if err != nil {
-		// Fallback to placeholder data if API fails
-		warningMsg := colorizer.Colorize("Using placeholder data - API error: ", ui.StyleWarning) +
-			colorizer.Colorize(err.Error(), ui.StyleMuted)
-		fmt.Println(warningMsg)
-		fmt.Println()
-
-		// Create table with placeholder data
-		table := ui.NewTable(colorizer, iconRenderer)
-		table.AddColumn("Invoice #", 12, "left")
-		table.AddColumn("Date", 12, "left")
-		table.AddColumn("Status", 10, "left")
-		table.AddColumn("Amount", 10, "right")
-		table.AddColumn("Subscriber", 15, "left")
-
-		table.AddStyledRow(ui.StyleSuccess.Style, "INV-000001", "2024-01-15", "Paid", "$45.67", "John Doe")
-		table.AddStyledRow(ui.StyleWarning.Style, "INV-000002", "2024-01-15", "Pending", "$123.45", "Jane Smith")
-		table.AddStyledRow(ui.StyleError.Style, "INV-000003", "2024-01-14", "Overdue", "$67.89", "Bob Johnson")
-
-		fmt.Println(table.Render())
-		return
+		u.warn("Using placeholder data: " + err.Error())
+		t.AddStyledRow(statusStyle("PAID").Style, "INV-000001", "2024-01-15", "Paid", "$45.67", "John Doe")
+		t.AddStyledRow(statusStyle("PENDING").Style, "INV-000002", "2024-01-15", "Pending", "$123.45", "Jane Smith")
+		t.AddStyledRow(statusStyle("OVERDUE").Style, "INV-000003", "2024-01-14", "Overdue", "$67.89", "Bob Johnson")
+		fmt.Println(t.Render())
+		return nil
 	}
 
-	// Create table with real data
-	table := ui.NewTable(colorizer, iconRenderer)
-	table.AddColumn("Invoice #", 12, "left")
-	table.AddColumn("Date", 12, "left")
-	table.AddColumn("Status", 10, "left")
-	table.AddColumn("Amount", 10, "right")
-	table.AddColumn("Subscriber", 15, "left")
-
-	// Add rows with real data
-	for _, invoice := range invoices {
-		var style ui.Style
-		switch invoice.Status {
-		case "PAID":
-			style = ui.StyleSuccess
-		case "PENDING":
-			style = ui.StyleWarning
-		case "OVERDUE":
-			style = ui.StyleError
-		default:
-			style = ui.StyleMuted
-		}
-
-		table.AddStyledRow(style.Style,
-			invoice.ID,
-			invoice.CreatedAt.Format("2006-01-02"),
-			invoice.Status,
-			fmt.Sprintf("$%.2f", invoice.Amount),
-			fmt.Sprintf("%s %s", invoice.Subscriber.FirstName, invoice.Subscriber.LastName))
+	for _, inv := range invoices {
+		t.AddStyledRow(statusStyle(inv.Status).Style,
+			inv.ID,
+			inv.CreatedAt.Format("2006-01-02"),
+			inv.Status,
+			fmt.Sprintf("$%.2f", inv.Amount),
+			fmt.Sprintf("%s %s", inv.Subscriber.FirstName, inv.Subscriber.LastName),
+		)
 	}
-
-	fmt.Println(table.Render())
+	fmt.Println(t.Render())
+	return nil
 }
 
-func handlePayments(apiClient *api.Client) {
-	colorizer := ui.NewColorizer(true)
-	iconRenderer := ui.NewIconRenderer(true, false)
+func handlePayments(u *uiContext) error {
+	u.header("Recent Payments")
 
-	title := colorizer.Colorize("Recent Payments", ui.StyleHeader)
-	fmt.Println(title)
+	payments, err := u.client.GetPayments()
+	t := u.newTable()
+	t.AddColumn("Transaction ID", 18, "left")
+	t.AddColumn("Date", 12, "left")
+	t.AddColumn("Amount", 10, "right")
+	t.AddColumn("Method", 10, "left")
+	t.AddColumn("Status", 10, "left")
 
-	// Try to get real data from API
-	payments, err := apiClient.GetPayments()
 	if err != nil {
-		// Fallback to placeholder data if API fails
-		warningMsg := colorizer.Colorize("Using placeholder data - API error: ", ui.StyleWarning) +
-			colorizer.Colorize(err.Error(), ui.StyleMuted)
-		fmt.Println(warningMsg)
-		fmt.Println()
-
-		// Create table with placeholder data
-		table := ui.NewTable(colorizer, iconRenderer)
-		table.AddColumn("Transaction ID", 16, "left")
-		table.AddColumn("Date", 12, "left")
-		table.AddColumn("Amount", 10, "right")
-		table.AddColumn("Method", 10, "left")
-		table.AddColumn("Status", 10, "left")
-
-		table.AddStyledRow(ui.StyleSuccess.Style, "pay_123456789", "2024-01-15", "$45.67", "Stripe", "Success")
-		table.AddStyledRow(ui.StyleSuccess.Style, "pay_123456790", "2024-01-14", "$123.45", "Stripe", "Success")
-		table.AddStyledRow(ui.StyleError.Style, "pay_123456791", "2024-01-13", "$67.89", "Credit", "Failed")
-
-		fmt.Println(table.Render())
-		return
+		u.warn("Using placeholder data: " + err.Error())
+		t.AddStyledRow(statusStyle("SUCCESS").Style, "pay_123456789", "2024-01-15", "$45.67", "Stripe", "Success")
+		t.AddStyledRow(statusStyle("SUCCESS").Style, "pay_123456790", "2024-01-14", "$123.45", "Stripe", "Success")
+		t.AddStyledRow(statusStyle("FAILED").Style, "pay_123456791", "2024-01-13", "$67.89", "Credit", "Failed")
+		fmt.Println(t.Render())
+		return nil
 	}
 
-	// Create table with real data
-	table := ui.NewTable(colorizer, iconRenderer)
-	table.AddColumn("Transaction ID", 16, "left")
-	table.AddColumn("Date", 12, "left")
-	table.AddColumn("Amount", 10, "right")
-	table.AddColumn("Method", 10, "left")
-	table.AddColumn("Status", 10, "left")
-
-	// Add rows with real data
-	for _, payment := range payments {
-		var style ui.Style
-		switch payment.Status {
-		case "SUCCESS", "COMPLETED":
-			style = ui.StyleSuccess
-		case "PENDING", "PROCESSING":
-			style = ui.StyleWarning
-		case "FAILED", "CANCELLED":
-			style = ui.StyleError
-		default:
-			style = ui.StyleMuted
-		}
-
-		table.AddStyledRow(style.Style,
-			payment.ID,
-			payment.CreatedAt.Format("2006-01-02"),
-			fmt.Sprintf("$%.2f", payment.Amount),
-			payment.Method,
-			payment.Status)
+	for _, p := range payments {
+		t.AddStyledRow(statusStyle(p.Status).Style,
+			p.ID,
+			p.CreatedAt.Format("2006-01-02"),
+			fmt.Sprintf("$%.2f", p.Amount),
+			p.Method,
+			p.Status,
+		)
 	}
-
-	fmt.Println(table.Render())
+	fmt.Println(t.Render())
+	return nil
 }
 
-func generateInvoice(apiClient *api.Client, args []string) {
-	colorizer := ui.NewColorizer(true)
-	iconRenderer := ui.NewIconRenderer(true, false)
-
+func generateInvoice(u *uiContext, args []string) error {
 	if len(args) < 1 {
-		errorMsg := colorizer.Colorize("Error: Subscriber ID is required", ui.StyleError)
-		usageMsg := colorizer.Colorize("Usage: telecom-cli billing generate <subscriber_id>", ui.StyleMuted)
-		fmt.Println(errorMsg)
-		fmt.Println(usageMsg)
-		return
+		u.errorln("Error: Subscriber ID is required")
+		u.muted("Usage: telecom-cli billing generate <subscriber_id>")
+		return fmt.Errorf("missing subscriber id")
 	}
-
 	subscriberID := args[0]
+	u.info("Generating invoice for subscriber: " + subscriberID)
 
-	// Show generation message
-	generatingMsg := colorizer.Colorize("Generating invoice for subscriber: ", ui.StyleInfo) +
-		colorizer.Colorize(subscriberID, ui.StyleArgument)
-	fmt.Println(generatingMsg)
+	invoice, err := u.client.GenerateInvoice(subscriberID)
+	t := u.newTable()
+	t.AddColumn("Field", 14, "left")
+	t.AddColumn("Value", 28, "left")
 
-	// Try to generate invoice via API
-	invoice, err := apiClient.GenerateInvoice(subscriberID)
 	if err != nil {
-		// Fallback to placeholder data if API fails
-		warningMsg := colorizer.Colorize("Using placeholder data - API error: ", ui.StyleWarning) +
-			colorizer.Colorize(err.Error(), ui.StyleMuted)
-		fmt.Println(warningMsg)
-		fmt.Println()
-
-		// Show success message with styled output
-		successMsg := colorizer.Colorize("Invoice generated successfully!", ui.StyleSuccess)
-		fmt.Println(successMsg)
-		fmt.Println()
-
-		// Create table for invoice details
-		table := ui.NewTable(colorizer, iconRenderer)
-		table.AddColumn("Field", 12, "left")
-		table.AddColumn("Value", 20, "left")
-
-		table.AddRow("Invoice #", "INV-000004")
-		table.AddRow("Amount", "$45.67")
-		table.AddRow("Due Date", "2024-02-15")
-
-		fmt.Println(table.Render())
-		return
+		u.warn("Using placeholder data: " + err.Error())
+		u.success("Invoice generated successfully (simulated)")
+		t.AddRow("Invoice #", "INV-000004")
+		t.AddRow("Amount", "$45.67")
+		t.AddRow("Due Date", "2024-02-15")
+		fmt.Println(t.Render())
+		return nil
 	}
 
-	// Show success message with styled output
-	successMsg := colorizer.Colorize("Invoice generated successfully!", ui.StyleSuccess)
-	fmt.Println(successMsg)
-	fmt.Println()
-
-	// Create table for invoice details with real data
-	table := ui.NewTable(colorizer, iconRenderer)
-	table.AddColumn("Field", 12, "left")
-	table.AddColumn("Value", 20, "left")
-
-	table.AddRow("Invoice #", invoice.ID)
-	table.AddRow("Amount", fmt.Sprintf("$%.2f", invoice.Amount))
-	table.AddRow("Due Date", invoice.DueDate.Format("2006-01-02"))
-	table.AddRow("Status", invoice.Status)
-
-	fmt.Println(table.Render())
+	u.success("Invoice generated successfully!")
+	t.AddRow("Invoice #", invoice.ID)
+	t.AddRow("Amount", fmt.Sprintf("$%.2f", invoice.Amount))
+	t.AddRow("Due Date", invoice.DueDate.Format("2006-01-02"))
+	t.AddRow("Status", invoice.Status)
+	fmt.Println(t.Render())
+	return nil
 }

@@ -2,88 +2,135 @@ package commands
 
 import (
 	"fmt"
+
+	"github.com/nutcas3/telecom-platform/apps/cli/internal/types"
 )
 
-func HandleDeploy(args []string) {
+// HandleDeploy is the entry point for deployment commands.
+func HandleDeploy(args []string, config *types.CLIConfig) error {
+	u := newUIContext(config)
 	if len(args) == 0 {
-		showDeployHelp()
-		return
+		showDeployHelp(u)
+		return nil
 	}
+
+	u.connectivityBanner()
 
 	command := args[0]
 	switch command {
 	case "status":
-		showDeployStatus()
+		return showDeployStatus(u)
 	case "start":
-		startDeployment(args[1:])
+		return startDeployment(u, args[1:])
 	case "rollback":
-		rollbackDeployment(args[1:])
+		return rollbackDeployment(u, args[1:])
 	case "history":
-		showDeployHistory()
+		return showDeployHistory(u)
 	default:
-		fmt.Printf("Unknown deploy command: %s\n", command)
-		showDeployHelp()
+		u.errorln("Unknown deploy command: " + command)
+		showDeployHelp(u)
+		return fmt.Errorf("unknown command: %s", command)
 	}
 }
 
-func showDeployHelp() {
-	fmt.Println("Deployment Management")
-	fmt.Println("Usage: telecom-cli deploy <command> [options]")
-	fmt.Println("\nAvailable commands:")
-	fmt.Println("  status                  - Show deployment status")
-	fmt.Println("  start <environment>      - Start deployment")
-	fmt.Println("  rollback <version>       - Rollback to version")
-	fmt.Println("  history                  - Show deployment history")
+func showDeployHelp(u *uiContext) {
+	u.header("Deployment Management")
+	u.muted("Usage: telecom-cli deploy <command> [options]")
+	fmt.Println()
+
+	t := u.newTable()
+	t.AddColumn("Command", 22, "left")
+	t.AddColumn("Description", 40, "left")
+	t.AddRow("status", "Show deployment status")
+	t.AddRow("start <environment>", "Start deployment")
+	t.AddRow("rollback <version>", "Rollback to version")
+	t.AddRow("history", "Show deployment history")
+	fmt.Println(t.Render())
 }
 
-func showDeployStatus() {
-	fmt.Println("Deployment Status:")
-	fmt.Println("Environment    Status      Version    Last Deploy")
-	fmt.Println("----------------------------------------------------")
-	fmt.Println("production      Healthy     v1.0.0     2024-01-15 14:30")
-	fmt.Println("staging         Healthy     v1.0.1     2024-01-15 13:45")
-	fmt.Println("development     Building    v1.1.0     2024-01-15 12:00")
+func showDeployStatus(u *uiContext) error {
+	u.header("Deployment Status")
+	u.muted("(Deployment API not yet connected - showing placeholder)")
+
+	t := u.newTable()
+	t.AddColumn("Environment", 14, "left")
+	t.AddColumn("Status", 12, "left")
+	t.AddColumn("Version", 10, "left")
+	t.AddColumn("Last Deploy", 18, "left")
+	t.AddStyledRow(statusStyle("HEALTHY").Style, "production", "Healthy", "v1.0.0", "2024-01-15 14:30")
+	t.AddStyledRow(statusStyle("HEALTHY").Style, "staging", "Healthy", "v1.0.1", "2024-01-15 13:45")
+	t.AddStyledRow(statusStyle("BUILDING").Style, "development", "Building", "v1.1.0", "2024-01-15 12:00")
+	fmt.Println(t.Render())
+	return nil
 }
 
-func startDeployment(args []string) {
+func startDeployment(u *uiContext, args []string) error {
 	if len(args) < 1 {
-		fmt.Println("Error: Environment is required")
-		fmt.Println("Usage: telecom-cli deploy start <environment>")
-		return
+		u.errorln("Error: Environment is required")
+		u.muted("Usage: telecom-cli deploy start <environment>")
+		return fmt.Errorf("missing environment")
 	}
-
-	environment := args[0]
-	fmt.Printf("Starting deployment to %s...\n", environment)
-	fmt.Println("Building application...")
-	fmt.Println("Running tests...")
-	fmt.Println("Creating deployment package...")
-	fmt.Println("Deploying to Kubernetes...")
-	fmt.Printf("Deployment to %s completed successfully!\n", environment)
+	env := args[0]
+	u.info("Starting deployment to " + env + "...")
+	steps := []string{
+		"Building application...",
+		"Running tests...",
+		"Creating deployment package...",
+		"Deploying to Kubernetes...",
+	}
+	for _, s := range steps {
+		u.muted(s)
+	}
+	u.success("Deployment to " + env + " completed successfully!")
+	return nil
 }
 
-func rollbackDeployment(args []string) {
+func rollbackDeployment(u *uiContext, args []string) error {
 	if len(args) < 1 {
-		fmt.Println("Error: Version is required")
-		fmt.Println("Usage: telecom-cli deploy rollback <version>")
-		return
+		u.errorln("Error: Version is required")
+		u.muted("Usage: telecom-cli deploy rollback <version>")
+		return fmt.Errorf("missing version")
 	}
-
 	version := args[0]
-	fmt.Printf("Rolling back to version %s...\n", version)
-	fmt.Println("Stopping current deployment...")
-	fmt.Println("Deploying previous version...")
-	fmt.Println("Running health checks...")
-	fmt.Printf("Rollback to %s completed successfully!\n", version)
+	u.info("Rolling back to version " + version + "...")
+	steps := []string{
+		"Stopping current deployment...",
+		"Deploying previous version...",
+		"Running health checks...",
+	}
+	for _, s := range steps {
+		u.muted(s)
+	}
+	u.success("Rollback to " + version + " completed successfully!")
+	return nil
 }
 
-func showDeployHistory() {
-	fmt.Println("Deployment History:")
-	fmt.Println("Version    Environment    Status    Date          Time")
-	fmt.Println("--------------------------------------------------------------------")
-	fmt.Println("v1.0.0     production      Success   2024-01-15    14:30")
-	fmt.Println("v1.0.1     staging         Success   2024-01-15    13:45")
-	fmt.Println("v1.0.0     staging         Success   2024-01-15    12:30")
-	fmt.Println("v0.9.9     production      Failed    2024-01-14    16:20")
-	fmt.Println("v0.9.8     production      Success   2024-01-14    15:45")
-	fmt.Println("v0.9.7     production      Success   2024-01-14    14:15")
+func showDeployHistory(u *uiContext) error {
+	u.header("Deployment History")
+	u.muted("(Deployment API not yet connected - showing placeholder)")
+
+	t := u.newTable()
+	t.AddColumn("Version", 10, "left")
+	t.AddColumn("Environment", 14, "left")
+	t.AddColumn("Status", 10, "left")
+	t.AddColumn("Date", 12, "left")
+	t.AddColumn("Time", 8, "left")
+
+	rows := [][]string{
+		{"v1.0.0", "production", "Success", "2024-01-15", "14:30"},
+		{"v1.0.1", "staging", "Success", "2024-01-15", "13:45"},
+		{"v1.0.0", "staging", "Success", "2024-01-15", "12:30"},
+		{"v0.9.9", "production", "Failed", "2024-01-14", "16:20"},
+		{"v0.9.8", "production", "Success", "2024-01-14", "15:45"},
+		{"v0.9.7", "production", "Success", "2024-01-14", "14:15"},
+	}
+	for _, r := range rows {
+		style := statusStyle("SUCCESS")
+		if r[2] == "Failed" {
+			style = statusStyle("FAILED")
+		}
+		t.AddStyledRow(style.Style, r[0], r[1], r[2], r[3], r[4])
+	}
+	fmt.Println(t.Render())
+	return nil
 }

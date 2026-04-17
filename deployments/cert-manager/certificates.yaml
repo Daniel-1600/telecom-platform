@@ -1,0 +1,123 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: telecom-platform-tls
+  namespace: telecom-platform
+  labels:
+    app.kubernetes.io/name: telecom-platform-tls
+    app.kubernetes.io/component: certificates
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  secretName: telecom-platform-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - api.telecom.local
+  - dashboard.telecom.local
+  - grafana.telecom.local
+  - prometheus.telecom.local
+  - kibana.telecom.local
+  - vault.telecom.local
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: telecom-platform-api-tls
+  namespace: telecom-platform
+  labels:
+    app.kubernetes.io/name: telecom-platform-api-tls
+    app.kubernetes.io/component: certificates
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  secretName: telecom-platform-api-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - api.telecom.local
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: telecom-platform-dashboard-tls
+  namespace: telecom-platform
+  labels:
+    app.kubernetes.io/name: telecom-platform-dashboard-tls
+    app.kubernetes.io/component: certificates
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  secretName: telecom-platform-dashboard-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - dashboard.telecom.local
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: telecom-platform-grafana-tls
+  namespace: telecom-platform
+  labels:
+    app.kubernetes.io/name: telecom-platform-grafana-tls
+    app.kubernetes.io/component: certificates
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  secretName: telecom-platform-grafana-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - grafana.telecom.local
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: telecom-platform-prometheus-tls
+  namespace: telecom-platform
+  labels:
+    app.kubernetes.io/name: telecom-platform-prometheus-tls
+    app.kubernetes.io/component: certificates
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  secretName: telecom-platform-prometheus-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - prometheus.telecom.local
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: telecom-platform-kibana-tls
+  namespace: telecom-platform
+  labels:
+    app.kubernetes.io/name: telecom-platform-kibana-tls
+    app.kubernetes.io/component: certificates
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  secretName: telecom-platform-kibana-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - kibana.telecom.local
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: telecom-platform-vault-tls
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: telecom-platform-vault-tls
+    app.kubernetes.io/component: certificates
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  secretName: telecom-platform-vault-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - vault.telecom.local

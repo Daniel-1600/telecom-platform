@@ -1,0 +1,146 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: telecom-platform
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: velero
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: telecom-platform
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: telecom-platform
+rules:
+- apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: telecom-platform
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: velero
+subjects:
+- kind: ServiceAccount
+  name: velero
+  namespace: velero
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: velero-aws-credentials
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: telecom-platform
+type: Opaque
+stringData:
+  cloud: |
+    [default]
+    aws_access_key_id = YOUR_AWS_ACCESS_KEY_ID
+    aws_secret_access_key = YOUR_AWS_SECRET_ACCESS_KEY
+---
+apiVersion: velero.io/v1
+kind: BackupStorageLocation
+metadata:
+  name: default
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  provider: aws
+  objectStorage:
+    bucket: telecom-platform-backups
+    prefix: ""
+  config:
+    region: us-east-1
+    profile: default
+---
+apiVersion: velero.io/v1
+kind: VolumeSnapshotLocation
+metadata:
+  name: default
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  provider: aws
+  config:
+    region: us-east-1
+    profile: default
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: telecom-platform-daily-backup
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  template:
+    includedNamespaces:
+    - telecom-platform
+    - telecom-platform-prod
+    storageLocation: default
+    volumeSnapshotLocations:
+    - default
+    ttl: "720h"  # 30 days
+    csiSnapshotTimeout: 10m
+    itemOperationTimeout: 10m
+  useOwnerReferencesInBackup: true
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: telecom-platform-weekly-backup
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: telecom-platform
+spec:
+  schedule: "0 3 * * 0"  # Weekly on Sunday at 3 AM
+  template:
+    includedNamespaces:
+    - telecom-platform
+    - telecom-platform-prod
+    storageLocation: default
+    volumeSnapshotLocations:
+    - default
+    ttl: "2160h"  # 90 days
+    csiSnapshotTimeout: 10m
+    itemOperationTimeout: 10m
+  useOwnerReferencesInBackup: true

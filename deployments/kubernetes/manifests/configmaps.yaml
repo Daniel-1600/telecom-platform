@@ -1,0 +1,159 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: telecom-config
+  namespace: telecom-platform
+data:
+  DATABASE_HOST: "postgres-service"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "telecom_platform"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  CHARGING_ENGINE_URL: "http://charging-engine-service:3001"
+  ES2_URL: "https://smdp.example.com"
+  INFLUXDB_URL: "http://influxdb-service:8086"
+  INFLUXDB_ORG: "telecom"
+  INFLUXDB_BUCKET: "telecom"
+  METRICS_PORT: "9090"
+  LOG_LEVEL: "info"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: telecom-platform
+data:
+  POSTGRES_DB: "telecom_platform"
+  POSTGRES_USER: "postgres"
+  POSTGRES_INIT_SCRIPT: |
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: telecom-platform
+data:
+  redis.conf: |
+    maxmemory 256mb
+    maxmemory-policy allkeys-lru
+    save 900 1
+    save 300 10
+    save 60 10000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: telecom-monitoring
+data:
+  GF_SECURITY_ADMIN_USER: "admin"
+  GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-simple-json-datasource"
+  GF_FEATURE_TOGGLES_ENABLE: "publicDashboards"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: telecom-monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    rule_files:
+      - "/etc/prometheus/rules/*.yml"
+    
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - alertmanager:9093
+    
+    scrape_configs:
+      - job_name: 'telecom-api-server'
+        static_configs:
+          - targets: ['api-server-service:8000']
+        metrics_path: '/metrics'
+        scrape_interval: 5s
+      
+      - job_name: 'telecom-charging-engine'
+        static_configs:
+          - targets: ['charging-engine-service:3001']
+        metrics_path: '/metrics'
+        scrape_interval: 5s
+      
+      - job_name: 'telecom-packet-gateway'
+        static_configs:
+          - targets: ['packet-gateway-service:9000']
+        metrics_path: '/metrics'
+        scrape_interval: 5s
+      
+      - job_name: 'postgres'
+        static_configs:
+          - targets: ['postgres-exporter:9187']
+      
+      - job_name: 'redis'
+        static_configs:
+          - targets: ['redis-exporter:9121']
+      
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: influxdb-config
+  namespace: telecom-monitoring
+data:
+  influxdb.conf: |
+    [meta]
+      dir = "/var/lib/influxdb/meta"
+    
+    [data]
+      dir = "/var/lib/influxdb/data"
+      engine = "tsm1"
+      wal-dir = "/var/lib/influxdb/wal"
+      
+    [coordinator]
+      write-timeout = "10s"
+      max-concurrent-queries = 0
+      query-timeout = "0s"
+      log-queries-after = "0"
+      max-select-point = 0
+      max-select-series = 0
+      max-select-buckets = 0
+    
+    [retention]
+      enabled = true
+      check-interval = "30m"
+    
+    [shard-precreation]
+      enabled = true
+      check-interval = "10m"
+      advance-period = "30m"
+    
+    [monitor]
+      store-enabled = true
+      store-database = "_internal"
+      store-interval = "10s"
+    
+    [subscriber]
+      enabled = true
+      http-timeout = "30s"
+      insecure-skip-verify = false
+      ca-certs = ""
+      write-consistency = "any"
+      write-buffer-size = 1000

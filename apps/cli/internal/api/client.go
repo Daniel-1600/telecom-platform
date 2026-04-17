@@ -163,6 +163,11 @@ type Service struct {
 	Memory  string  `json:"memory"`
 }
 
+// PostRestart requests the API to restart the named service.
+func (c *Client) PostRestart(name string) error {
+	return c.doPostJSON("/api/v1/services/"+name+"/restart", nil, nil)
+}
+
 // ListServices returns platform services
 func (c *Client) ListServices() ([]Service, error) {
 	var resp struct {

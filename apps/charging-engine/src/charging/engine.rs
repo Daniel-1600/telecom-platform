@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use super::types::{RatingPlan, SubscriberAccount};
 use crate::errors::{ChargingError, ChargingResult, ErrorContext};
@@ -8,6 +8,7 @@ pub struct ChargingEngine {
     redis_client: redis::Client,
     rating_plans: HashMap<String, RatingPlan>,
     sync_interval: Duration,
+    startup_time: SystemTime,
 }
 
 impl ChargingEngine {
@@ -58,6 +59,7 @@ impl ChargingEngine {
             redis_client,
             rating_plans,
             sync_interval: Duration::from_secs(sync_interval_secs),
+            startup_time: SystemTime::now(),
         })
     }
 

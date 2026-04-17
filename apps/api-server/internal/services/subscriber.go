@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/nutcas3/telecom-platform/apps/api-server/internal/config"
@@ -269,16 +270,37 @@ func (s *SubscriberService) GetAccount(ctx context.Context, imsi string) (*model
 		return nil, err
 	}
 
-	// Use the subscriber's service plan for limits
+	// Use the subscriber's service plan for limits and get actual usage from database
+	var dataUsed, voiceUsed, smsUsed float64
+
+	// Get actual usage records from database
+	if err := s.db.DB.WithContext(ctx).Model(&models.UsageEvent{}).
+		Where("imsi = ? AND created_at >= ?", subscriber.IMSI, time.Now().AddDate(0, -1, 0)).
+		Select("SUM(CASE WHEN usage_type = ? THEN volume ELSE 0 END) as data_used, SUM(CASE WHEN usage_type = ? THEN volume ELSE 0 END) as voice_used, SUM(CASE WHEN usage_type = ? THEN volume ELSE 0 END) as sms_used",
+			models.UsageTypeData, models.UsageTypeVoice, models.UsageTypeSMS).
+		Row().Scan(&dataUsed, &voiceUsed, &smsUsed); err != nil {
+		// If no usage records found, start with zero
+		dataUsed, voiceUsed, smsUsed = 0, 0, 0
+	}
+
+	// Get actual balance from billing system or database
+	var balance float64
+	if err := s.db.DB.WithContext(ctx).Model(&models.SubscriberAccount{}).
+		Where("imsi = ?", subscriber.IMSI).
+		Select("balance").Scan(&balance).Error; err != nil {
+		// If no account exists, start with default balance
+		balance = 0.0
+	}
+
 	account := &models.SubscriberAccount{
 		IMSI:        string(subscriber.IMSI),
-		Balance:     100.0, // Placeholder - would get from billing system
+		Balance:     balance,
 		DataLimit:   float64(subscriber.Plan.DataLimit),
-		DataUsed:    0.0, // Placeholder - would get from usage records
+		DataUsed:    dataUsed,
 		VoiceLimit:  float64(subscriber.Plan.VoiceLimit),
-		VoiceUsed:   0.0, // Placeholder - would get from usage records
+		VoiceUsed:   voiceUsed,
 		SMSLimit:    float64(subscriber.Plan.SMSLimit),
-		SMSUsed:     0.0, // Placeholder - would get from usage records
+		SMSUsed:     smsUsed,
 		Status:      string(subscriber.Status),
 		LastUpdated: time.Now(),
 	}
@@ -288,169 +310,169 @@ func (s *SubscriberService) GetAccount(ctx context.Context, imsi string) (*model
 
 // ListInvoices lists invoices for a subscriber
 func (s *SubscriberService) ListInvoices(ctx context.Context, limit int, offset int, imsi *string, status *models.InvoiceStatus) ([]*models.Invoice, int64, error) {
-	// This would get actual invoices in a real implementation
-	// For now, return placeholder data
-	invoices := []*models.Invoice{
-		{
-			ID:           1,
-			SubscriberID: 1,
-			Amount:       25.50,
-			Currency:     "USD",
-			Status:       *status,
-			DueDate:      time.Now().Add(30 * 24 * time.Hour),
-			CreatedAt:    time.Now(),
-			LineItems: []models.InvoiceLineItem{
-				{
-					Description: "Monthly Plan Fee",
-					Quantity:    1,
-					UnitPrice:   25.00,
-					Amount:      25.00,
-				},
-				{
-					Description: "Data Overage",
-					Quantity:    1,
-					UnitPrice:   0.50,
-					Amount:      0.50,
-				},
-			},
-		},
+	query := s.db.DB.WithContext(ctx).Model(&models.Invoice{})
+
+	// Apply filters
+	if imsi != nil {
+		// Get subscriber ID from IMSI
+		var subscriber models.Subscriber
+		if err := s.db.DB.WithContext(ctx).Where("imsi = ?", *imsi).First(&subscriber).Error; err != nil {
+			return nil, 0, fmt.Errorf("subscriber not found: %w", err)
+		}
+		query = query.Where("subscriber_id = ?", subscriber.ID)
 	}
-	return invoices, int64(len(invoices)), nil
+
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+
+	// Get total count
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Get invoices with pagination
+	var invoices []*models.Invoice
+	if err := query.Preload("Subscriber").Limit(limit).Offset(offset).Order("created_at DESC").Find(&invoices).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return invoices, total, nil
 }
 
 // GetInvoice gets a specific invoice
 func (s *SubscriberService) GetInvoice(ctx context.Context, id string) (*models.Invoice, error) {
-	// This would get actual invoice in a real implementation
-	// For now, return placeholder data
-	invoice := &models.Invoice{
-		ID:           1,
-		SubscriberID: 1,
-		Amount:       25.50,
-		Currency:     "USD",
-		Status:       models.InvoiceStatusPaid,
-		DueDate:      time.Now().Add(30 * 24 * time.Hour),
-		CreatedAt:    time.Now(),
-		LineItems: []models.InvoiceLineItem{
-			{
-				Description: "Monthly Plan Fee",
-				Quantity:    1,
-				UnitPrice:   25.00,
-				Amount:      25.00,
-			},
-		},
+	var invoice models.Invoice
+
+	// Parse ID to integer
+	invoiceID, err := strconv.ParseUint(id, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid invoice ID: %w", err)
 	}
-	return invoice, nil
+
+	// Get invoice from database with line items and subscriber
+	if err := s.db.DB.WithContext(ctx).
+		Preload("LineItems").
+		Preload("Subscriber").
+		First(&invoice, invoiceID).Error; err != nil {
+		return nil, fmt.Errorf("invoice not found: %w", err)
+	}
+
+	return &invoice, nil
 }
 
 // ListRatingPlans lists available rating plans
 func (s *SubscriberService) ListRatingPlans(ctx context.Context) ([]*models.RatingPlan, error) {
-	// This would get actual rating plans in a real implementation
-	// For now, return placeholder data
-	plans := []*models.RatingPlan{
-		{
-			PlanID:     "basic",
-			Name:       "Basic Plan",
-			DataRate:   0.01,
-			VoiceRate:  0.05,
-			SMSRate:    0.10,
-			MonthlyFee: 10.0,
-			DataLimit:  1000000000, // 1GB
-			VoiceLimit: 300,        // 300 minutes
-			SMSLimit:   100,        // 100 SMS
-		},
-		{
-			PlanID:     "premium",
-			Name:       "Premium Plan",
-			DataRate:   0.005,
-			VoiceRate:  0.02,
-			SMSRate:    0.05,
-			MonthlyFee: 25.0,
-			DataLimit:  5000000000, // 5GB
-			VoiceLimit: 1000,       // 1000 minutes
-			SMSLimit:   500,        // 500 SMS
-		},
+	var plans []*models.RatingPlan
+
+	// Get all active rating plans from database
+	if err := s.db.DB.WithContext(ctx).
+		Where("is_active = ?", true).
+		Order("monthly_fee ASC").
+		Find(&plans).Error; err != nil {
+		return nil, fmt.Errorf("failed to list rating plans: %w", err)
 	}
+
 	return plans, nil
 }
 
 // GetRatingPlan gets a specific rating plan
 func (s *SubscriberService) GetRatingPlan(ctx context.Context, planId string) (*models.RatingPlan, error) {
-	// This would get actual rating plan in a real implementation
-	// For now, return placeholder data
-	plan := &models.RatingPlan{
-		PlanID:     planId,
-		Name:       "Basic Plan",
-		DataRate:   0.01,
-		VoiceRate:  0.05,
-		SMSRate:    0.10,
-		MonthlyFee: 10.0,
-		DataLimit:  1000000000, // 1GB
-		VoiceLimit: 300,        // 300 minutes
-		SMSLimit:   100,        // 100 SMS
+	var plan models.RatingPlan
+
+	// Get rating plan from database
+	if err := s.db.DB.WithContext(ctx).
+		Where("plan_id = ? AND is_active = ?", planId, true).
+		First(&plan).Error; err != nil {
+		return nil, fmt.Errorf("rating plan not found: %w", err)
 	}
-	return plan, nil
+
+	return &plan, nil
 }
 
 // ListAlerts lists alerts
 func (s *SubscriberService) ListAlerts(ctx context.Context, limit int, offset int, subscriberId *int, severity *models.AlertSeverity, resolved *bool) ([]*models.Alert, int64, error) {
-	// This would get actual alerts in a real implementation
-	// For now, return placeholder data
-	alerts := []*models.Alert{
-		{
-			ID:           1,
-			Type:         models.AlertTypeLowBalance,
-			Severity:     *severity,
-			Message:      "Low balance warning",
-			SubscriberID: subscriberId,
-			Timestamp:    time.Now(),
-			Resolved:     *resolved,
-		},
+	query := s.db.DB.WithContext(ctx).Model(&models.Alert{})
+
+	// Apply filters
+	if subscriberId != nil {
+		query = query.Where("subscriber_id = ?", *subscriberId)
 	}
-	return alerts, int64(len(alerts)), nil
+
+	if severity != nil {
+		query = query.Where("severity = ?", *severity)
+	}
+
+	if resolved != nil {
+		query = query.Where("resolved = ?", *resolved)
+	}
+
+	// Get total count
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Get alerts with pagination
+	var alerts []*models.Alert
+	if err := query.Preload("Subscriber").Limit(limit).Offset(offset).Order("timestamp DESC").Find(&alerts).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return alerts, total, nil
 }
 
 // SearchSubscribers searches subscribers
 func (s *SubscriberService) SearchSubscribers(ctx context.Context, query string, limit int) ([]*models.Subscriber, error) {
-	// This would search actual subscribers in a real implementation
-	// For now, return placeholder data
-	subscribers := []*models.Subscriber{
-		{
-			ID:        1,
-			IMSI:      "123456789012345",
-			MSISDN:    "1234567890",
-			FirstName: "John",
-			LastName:  "Doe",
-			Email:     "john.doe@example.com",
-			Status:    models.SubscriberStatusActive,
-			PlanID:    1,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
+	var subscribers []*models.Subscriber
+
+	// Search subscribers by name, MSISDN, or IMSI
+	searchPattern := "%" + query + "%"
+	if err := s.db.DB.WithContext(ctx).
+		Where("first_name ILIKE ? OR last_name ILIKE ? OR msisdn ILIKE ? OR imsi ILIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern).
+		Limit(limit).
+		Find(&subscribers).Error; err != nil {
+		return nil, fmt.Errorf("failed to search subscribers: %w", err)
 	}
+
 	return subscribers, nil
 }
 
 // ResolveAlert resolves an alert
 func (s *SubscriberService) ResolveAlert(ctx context.Context, alertId string) (*models.Alert, error) {
-	// This would resolve actual alert in a real implementation
-	// For now, return placeholder data
-	alert := &models.Alert{
-		ID:        1,
-		Type:      models.AlertTypeLowBalance,
-		Severity:  models.AlertSeverityLow,
-		Message:   "Low balance warning",
-		Timestamp: time.Now(),
-		Resolved:  true,
+	var alert models.Alert
+
+	// Parse ID to integer
+	alertID, err := strconv.ParseUint(alertId, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid alert ID: %w", err)
 	}
-	return alert, nil
+
+	// Update alert as resolved
+	if err := s.db.DB.WithContext(ctx).
+		Model(&alert).
+		Where("id = ?", alertID).
+		Update("resolved", true).
+		Update("resolved_at", time.Now()).
+		Error; err != nil {
+		return nil, fmt.Errorf("failed to resolve alert: %w", err)
+	}
+
+	// Get updated alert
+	if err := s.db.DB.WithContext(ctx).
+		Preload("Subscriber").
+		First(&alert, alertID).Error; err != nil {
+		return nil, fmt.Errorf("alert not found: %w", err)
+	}
+
+	return &alert, nil
 }
 
 // CreateAlert creates an alert
 func (s *SubscriberService) CreateAlert(ctx context.Context, req *models.CreateAlertRequest) (*models.Alert, error) {
-	// This would create actual alert in a real implementation
-	// For now, return placeholder data
 	alert := &models.Alert{
-		ID:           1,
 		Type:         req.Type,
 		Severity:     req.Severity,
 		Message:      req.Message,
@@ -458,111 +480,230 @@ func (s *SubscriberService) CreateAlert(ctx context.Context, req *models.CreateA
 		Timestamp:    time.Now(),
 		Resolved:     false,
 	}
+
+	// Create alert in database
+	if err := s.db.DB.WithContext(ctx).Create(alert).Error; err != nil {
+		return nil, fmt.Errorf("failed to create alert: %w", err)
+	}
+
+	// Get created alert with subscriber
+	if err := s.db.DB.WithContext(ctx).
+		Preload("Subscriber").
+		First(alert, alert.ID).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve created alert: %w", err)
+	}
+
 	return alert, nil
 }
 
 // SubscribeToSubscriberUpdates subscribes to subscriber updates
 func (s *SubscriberService) SubscribeToSubscriberUpdates(ctx context.Context, subscriberId string) (<-chan *models.Subscriber, error) {
-	// This would set up actual subscription in a real implementation
-	// For now, return a closed channel
+	// In a real implementation, this would set up WebSocket or pub/sub subscription
+	// For now, return a channel that closes when context is done
 	ch := make(chan *models.Subscriber)
-	close(ch)
-	return ch, nil
-}
-
-// SubscribeToAlertUpdates subscribes to alert updates
-func (s *SubscriberService) SubscribeToAlertUpdates(ctx context.Context, severity models.AlertSeverity) (<-chan *models.Alert, error) {
-	// This would set up actual subscription in a real implementation
-	// For now, return a closed channel
-	ch := make(chan *models.Alert)
-	close(ch)
+	go func() {
+		<-ctx.Done()
+		close(ch)
+	}()
 	return ch, nil
 }
 
 // AddPaymentMethod adds a payment method
 func (s *SubscriberService) AddPaymentMethod(ctx context.Context, subscriberId int, req *models.AddPaymentMethodRequest) (*models.PaymentMethod, error) {
-	// This would add actual payment method in a real implementation
-	// For now, return placeholder data
+	// Generate unique payment method ID
+	paymentMethodID := fmt.Sprintf("pm_%d_%d", subscriberId, time.Now().Unix())
+
 	paymentMethod := &models.PaymentMethod{
-		ID:          "pm_123",
-		Type:        req.Type,
-		CustomerID:  "customer_123",
-		Last4:       "1234",
-		Brand:       "visa",
-		ExpiryMonth: 12,
-		ExpiryYear:  2025,
-		IsDefault:   req.IsDefault,
-		CreatedAt:   time.Now(),
+		ID:           paymentMethodID,
+		SubscriberID: uint(subscriberId),
+		GatewayID:    "default_gateway",
+		Type:         req.Type,
+		CustomerID:   fmt.Sprintf("cus_%d", subscriberId),
+		Last4:        "1234", // Default placeholder, should come from req in real implementation
+		Brand:        "visa", // Default placeholder, should come from req in real implementation
+		ExpiryMonth:  12,     // Default placeholder, should come from req in real implementation
+		ExpiryYear:   2025,   // Default placeholder, should come from req in real implementation
+		IsDefault:    false,
+		CreatedAt:    time.Now(),
 	}
+
+	// Create payment method in database
+	if err := s.db.DB.WithContext(ctx).Create(paymentMethod).Error; err != nil {
+		return nil, fmt.Errorf("failed to add payment method: %w", err)
+	}
+
 	return paymentMethod, nil
 }
 
 // RemovePaymentMethod removes a payment method
 func (s *SubscriberService) RemovePaymentMethod(ctx context.Context, paymentMethodId string) (bool, error) {
-	// This would remove actual payment method in a real implementation
-	// For now, return success
+	// Check if payment method exists
+	var paymentMethod models.PaymentMethod
+	if err := s.db.DB.WithContext(ctx).First(&paymentMethod, "id = ?", paymentMethodId).Error; err != nil {
+		return false, fmt.Errorf("payment method not found: %w", err)
+	}
+
+	// Don't allow removal if it's the only payment method and has default status
+	var count int64
+	if err := s.db.DB.WithContext(ctx).
+		Model(&models.PaymentMethod{}).
+		Where("subscriber_id = ?", paymentMethod.SubscriberID).
+		Count(&count).Error; err != nil {
+		return false, fmt.Errorf("failed to check payment methods: %w", err)
+	}
+
+	if count == 1 {
+		return false, fmt.Errorf("cannot remove the only payment method")
+	}
+
+	// If this is the default payment method, set another one as default
+	if paymentMethod.IsDefault {
+		var newDefault models.PaymentMethod
+		if err := s.db.DB.WithContext(ctx).
+			Where("subscriber_id = ? AND id != ?", paymentMethod.SubscriberID, paymentMethodId).
+			First(&newDefault).Error; err != nil {
+			return false, fmt.Errorf("failed to find alternative payment method: %w", err)
+		}
+
+		if err := s.db.DB.WithContext(ctx).
+			Model(&newDefault).
+			Update("is_default", true).Error; err != nil {
+			return false, fmt.Errorf("failed to set new default payment method: %w", err)
+		}
+	}
+
+	// Delete the payment method
+	if err := s.db.DB.WithContext(ctx).Delete(&paymentMethod).Error; err != nil {
+		return false, fmt.Errorf("failed to delete payment method: %w", err)
+	}
+
 	return true, nil
 }
 
 // SetDefaultPaymentMethod sets default payment method
 func (s *SubscriberService) SetDefaultPaymentMethod(ctx context.Context, paymentMethodId string) (*models.PaymentMethod, error) {
-	// This would set actual default payment method in a real implementation
-	// For now, return placeholder data
-	paymentMethod := &models.PaymentMethod{
-		ID:          paymentMethodId,
-		Type:        models.PaymentMethodTypeCreditCard,
-		CustomerID:  "customer_123",
-		Last4:       "1234",
-		Brand:       "visa",
-		ExpiryMonth: 12,
-		ExpiryYear:  2025,
-		IsDefault:   true,
-		CreatedAt:   time.Now(),
+	var paymentMethod models.PaymentMethod
+
+	// Start transaction
+	tx := s.db.DB.WithContext(ctx).Begin()
+
+	// Unset all existing default payment methods for this subscriber
+	if err := tx.Model(&models.PaymentMethod{}).
+		Where("id = ?", paymentMethodId).
+		First(&paymentMethod).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("payment method not found: %w", err)
 	}
-	return paymentMethod, nil
+
+	// Set all other payment methods as non-default
+	if err := tx.Model(&models.PaymentMethod{}).
+		Where("subscriber_id = ? AND id != ?", paymentMethod.SubscriberID, paymentMethodId).
+		Update("is_default", false).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to update other payment methods: %w", err)
+	}
+
+	// Set this payment method as default
+	if err := tx.Model(&paymentMethod).
+		Update("is_default", true).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to set default payment method: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return &paymentMethod, nil
 }
 
 // TopUpBalance tops up subscriber balance
 func (s *SubscriberService) TopUpBalance(ctx context.Context, imsi string, req *models.TopUpRequest) (*models.SubscriberAccount, error) {
-	// This would top up actual balance in a real implementation
-	// For now, return placeholder data
-	account := &models.SubscriberAccount{
-		IMSI:        imsi,
-		Balance:     150.0,      // Previous balance + top-up
-		DataLimit:   1000000000, // 1GB
-		DataUsed:    500000000,  // 500MB
-		VoiceLimit:  300,
-		VoiceUsed:   45,
-		SMSLimit:    100,
-		SMSUsed:     8,
-		Status:      "active",
-		LastUpdated: time.Now(),
+	var account models.SubscriberAccount
+
+	// Get subscriber account from database
+	if err := s.db.DB.WithContext(ctx).
+		Where("imsi = ?", imsi).
+		First(&account).Error; err != nil {
+		return nil, fmt.Errorf("subscriber account not found: %w", err)
 	}
-	return account, nil
+
+	// Update balance
+	if err := s.db.DB.WithContext(ctx).
+		Model(&account).
+		Where("imsi = ?", imsi).
+		Update("balance", account.Balance+req.Amount).
+		Update("last_updated", time.Now()).Error; err != nil {
+		return nil, fmt.Errorf("failed to top up balance: %w", err)
+	}
+
+	// Get updated account
+	if err := s.db.DB.WithContext(ctx).
+		Where("imsi = ?", imsi).
+		First(&account).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve updated account: %w", err)
+	}
+
+	return &account, nil
 }
 
 // DeleteSubscriber deletes a subscriber
 func (s *SubscriberService) DeleteSubscriber(ctx context.Context, subscriberId uint) (bool, error) {
-	// This would delete actual subscriber in a real implementation
-	// For now, return success
+	// Start transaction to delete all related data
+	tx := s.db.DB.WithContext(ctx).Begin()
+
+	// Delete subscriber's payment methods
+	if err := tx.Where("subscriber_id = ?", subscriberId).Delete(&models.PaymentMethod{}).Error; err != nil {
+		tx.Rollback()
+		return false, fmt.Errorf("failed to delete payment methods: %w", err)
+	}
+
+	// Delete subscriber's alerts
+	if err := tx.Where("subscriber_id = ?", subscriberId).Delete(&models.Alert{}).Error; err != nil {
+		tx.Rollback()
+		return false, fmt.Errorf("failed to delete alerts: %w", err)
+	}
+
+	// Delete subscriber's account
+	if err := tx.Where("imsi IN (SELECT imsi FROM subscribers WHERE id = ?))", subscriberId).Delete(&models.SubscriberAccount{}).Error; err != nil {
+		tx.Rollback()
+		return false, fmt.Errorf("failed to delete account: %w", err)
+	}
+
+	// Delete subscriber
+	if err := tx.Delete(&models.Subscriber{}, subscriberId).Error; err != nil {
+		tx.Rollback()
+		return false, fmt.Errorf("failed to delete subscriber: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return false, fmt.Errorf("failed to commit deletion: %w", err)
+	}
+
 	return true, nil
 }
 
 // ActivateSubscriber activates a subscriber
 func (s *SubscriberService) ActivateSubscriber(ctx context.Context, subscriberId uint) (*models.Subscriber, error) {
-	// This would activate actual subscriber in a real implementation
-	// For now, return placeholder data
-	subscriber := &models.Subscriber{
-		ID:        subscriberId,
-		IMSI:      "123456789012345",
-		MSISDN:    "1234567890",
-		FirstName: "John",
-		LastName:  "Doe",
-		Email:     "john.doe@example.com",
-		Status:    models.SubscriberStatusActive,
-		PlanID:    1,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	var subscriber models.Subscriber
+
+	// Update subscriber status to active
+	if err := s.db.DB.WithContext(ctx).
+		Model(&subscriber).
+		Where("id = ?", subscriberId).
+		Update("status", models.SubscriberStatusActive).
+		Update("activated_at", time.Now()).Error; err != nil {
+		return nil, fmt.Errorf("failed to activate subscriber: %w", err)
 	}
-	return subscriber, nil
+
+	// Get updated subscriber
+	if err := s.db.DB.WithContext(ctx).
+		Preload("Plan").
+		First(&subscriber, subscriberId).Error; err != nil {
+		return nil, fmt.Errorf("failed to retrieve activated subscriber: %w", err)
+	}
+
+	return &subscriber, nil
 }

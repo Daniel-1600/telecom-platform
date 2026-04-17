@@ -104,9 +104,10 @@ func showAlerts(u *uiContext) error {
 		}
 		for _, r := range rows {
 			style := statusStyle(strings.ToUpper(r[0]))
-			if r[0] == "High" {
+			switch r[0] {
+			case "High":
 				style = statusStyle("ERROR")
-			} else if r[0] == "Medium" {
+			case "Medium":
 				style = statusStyle("WARNING")
 			}
 			t.AddStyledRow(style.Style, r[0], r[1], r[2], r[3])

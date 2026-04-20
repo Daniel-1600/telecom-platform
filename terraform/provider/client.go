@@ -19,7 +19,7 @@ type APIClient struct {
 	HTTPClient *http.Client
 }
 
-func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
+func providerConfigure(ctx context.Context, d *schema.ResourceData) (any, diag.Diagnostics) {
 	apiURL := d.Get("api_url").(string)
 	apiKey := d.Get("api_key").(string)
 
@@ -34,7 +34,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	return client, nil
 }
 
-func (c *APIClient) doRequest(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
+func (c *APIClient) doRequest(ctx context.Context, method, path string, body any) (*http.Response, error) {
 	var reqBody *bytes.Buffer
 	if body != nil {
 		jsonBody, err := json.Marshal(body)
@@ -59,7 +59,7 @@ func (c *APIClient) doRequest(ctx context.Context, method, path string, body int
 	return c.HTTPClient.Do(req)
 }
 
-func (c *APIClient) get(ctx context.Context, path string, result interface{}) error {
+func (c *APIClient) get(ctx context.Context, path string, result any) error {
 	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return err
@@ -73,7 +73,7 @@ func (c *APIClient) get(ctx context.Context, path string, result interface{}) er
 	return json.NewDecoder(resp.Body).Decode(result)
 }
 
-func (c *APIClient) post(ctx context.Context, path string, body, result interface{}) error {
+func (c *APIClient) post(ctx context.Context, path string, body, result any) error {
 	resp, err := c.doRequest(ctx, http.MethodPost, path, body)
 	if err != nil {
 		return err
@@ -90,7 +90,7 @@ func (c *APIClient) post(ctx context.Context, path string, body, result interfac
 	return nil
 }
 
-func (c *APIClient) put(ctx context.Context, path string, body, result interface{}) error {
+func (c *APIClient) put(ctx context.Context, path string, body, result any) error {
 	resp, err := c.doRequest(ctx, http.MethodPut, path, body)
 	if err != nil {
 		return err

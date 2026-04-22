@@ -13,6 +13,7 @@ type Config struct {
 	Payment        PaymentConfig        `json:"payment"`
 	ChargingEngine ChargingEngineConfig `json:"charging_engine"`
 	InfluxDB       InfluxDBConfig       `json:"influxdb"`
+	Auth           AuthConfig           `json:"auth"`
 }
 
 type ChargingEngineConfig struct {
@@ -69,6 +70,10 @@ type ES2Config struct {
 	FunctionalityRequesterID string `json:"functionality_requester_id"`
 }
 
+type AuthConfig struct {
+	JWTSecret string `json:"jwt_secret"`
+}
+
 func LoadConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
@@ -116,6 +121,9 @@ func LoadConfig() *Config {
 			Token:  "",
 			Org:    "telecom",
 			Bucket: "telecom",
+		},
+		Auth: AuthConfig{
+			JWTSecret: "change-me-in-production",
 		},
 	}
 }

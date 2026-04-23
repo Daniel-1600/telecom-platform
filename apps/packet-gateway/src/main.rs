@@ -2,7 +2,10 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use redis::AsyncCommands;
 use tokio::time::{interval, Duration};
-use tracing::{info, warn, error};
+use tracing::{info, warn, error, debug};
+
+mod ebpf;
+use ebpf::EbpfManager;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -35,11 +38,13 @@ async fn main() -> Result<()> {
     info!("Interface: {}", args.interface);
     info!("Redis URL: {}", args.redis_url);
 
-    // NOTE: This is a simplified version
-    // For full eBPF implementation, you need:
-    // 1. Compile eBPF program with aya-bpf
-    // 2. Load and attach XDP program
-    // 3. Access eBPF maps for packet stats and credit control
+    // Initialize eBPF manager
+    let mut ebpf_manager = EbpfManager::new(args.interface.clone()).await
+        .context("Failed to initialize eBPF manager")?;
+    
+    // Load and attach XDP program
+    ebpf_manager.attach()
+        .context("Failed to attach eBPF program")?;
     
     // Connect to Redis
     let redis_client = redis::Client::open(args.redis_url.as_str())?;
@@ -48,32 +53,66 @@ async fn main() -> Result<()> {
     // Test connection
     let _: () = redis::cmd("PING").query_async(&mut redis_conn).await?;
     info!("Connected to Redis successfully");
+    
+    // Initial sync from Redis to eBPF maps
+    info!("Performing initial sync from Redis to eBPF maps...");
+    ebpf_manager.sync_from_redis(&mut redis_conn).await
+        .context("Failed to sync from Redis to eBPF maps")?;
+    info!("Initial sync completed");
 
-    // Simulate packet processing loop
-    // In production, this would read from eBPF maps
+    // Set up periodic synchronization loop
     let mut ticker = interval(Duration::from_secs(args.sync_interval));
     
     info!("Packet gateway running. Press Ctrl+C to exit.");
     
+    // Main synchronization loop with graceful shutdown
+    let mut counter = 0u64;
     loop {
-        ticker.tick().await;
-        
-        // Simulate updating packet statistics to Redis
-        // In real implementation, read from eBPF map
-        let test_ip = "10.0.0.1";
-        let test_bytes: u64 = 1024 * 1024; // 1 MB
-        
-        let key = format!("usage:{}", test_ip);
-        let _: () = redis_conn.set_ex(&key, test_bytes, 3600).await?;
-        
-        info!("Updated usage for {}: {} bytes", test_ip, test_bytes);
-        
-        // Check credit status
-        let credit_key = format!("credit:{}", test_ip);
-        let credit: i64 = redis_conn.get(&credit_key).await.unwrap_or(0);
-        
-        if credit <= 0 {
-            warn!("User {} has no credit - would block traffic in eBPF", test_ip);
+        tokio::select! {
+            _ = ticker.tick() => {
+                // Use batch sync from eBPF to Redis
+                if let Err(e) = ebpf_manager.sync_batch_to_redis(&mut redis_conn).await {
+                    error!("Failed to batch sync eBPF maps to Redis: {}", e);
+                    continue;
+                }
+                
+                // Sync Redis data to eBPF maps (for credit updates, etc.)
+                if let Err(e) = ebpf_manager.sync_from_redis(&mut redis_conn).await {
+                    error!("Failed to sync from Redis to eBPF maps: {}", e);
+                }
+                
+                counter += 1;
+                
+                // Log current stats (every 10 iterations to avoid spam)
+                if counter % 10 == 0 {
+                    if let Ok(stats) = ebpf_manager.get_packet_stats() {
+                        let total_bytes: u64 = stats.iter().map(|s| s.bytes).sum();
+                        info!("Current tracked IPs: {}, Total bytes processed: {}", stats.len(), total_bytes);
+                    }
+                    
+                    if let Ok(credits) = ebpf_manager.get_credit_info() {
+                        let low_credit_users = credits.iter().filter(|c| c.credit < 1000).count();
+                        if low_credit_users > 0 {
+                            warn!("{} users with low credit balance", low_credit_users);
+                        }
+                    }
+                }
+            }
+            _ = tokio::signal::ctrl_c() => {
+                info!("Received shutdown signal, cleaning up...");
+                
+                // Final sync before shutdown
+                if let Err(e) = ebpf_manager.sync_batch_to_redis(&mut redis_conn).await {
+                    error!("Failed to sync final stats to Redis: {}", e);
+                }
+                
+                // Clean up eBPF maps
+                if let Err(e) = ebpf_manager.cleanup_maps() {
+                    error!("Failed to clean up eBPF maps: {}", e);
+                }
+                
+                info!("Packet gateway shutdown complete");
+                return Ok(());
+            }
         }
-    }
 }

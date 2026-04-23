@@ -11,9 +11,16 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
+// RedisClientInterface defines the interface for Redis operations
+type RedisClientInterface interface {
+	Eval(ctx context.Context, script string, keys []string, args ...interface{}) *redis.Cmd
+	Del(ctx context.Context, keys ...string) *redis.IntCmd
+	ZCount(ctx context.Context, key, min, max string) *redis.IntCmd
+}
+
 // RedisRateLimiter implements distributed rate limiting using Redis
 type RedisRateLimiter struct {
-	client *redis.Client
+	client RedisClientInterface
 	prefix string
 	limit  int64
 	window time.Duration
@@ -29,7 +36,7 @@ type RateLimitResult struct {
 }
 
 // NewRedisRateLimiter creates a new Redis-based rate limiter
-func NewRedisRateLimiter(client *redis.Client, prefix string, limit int64, window time.Duration) *RedisRateLimiter {
+func NewRedisRateLimiter(client RedisClientInterface, prefix string, limit int64, window time.Duration) *RedisRateLimiter {
 	return &RedisRateLimiter{
 		client: client,
 		prefix: prefix,
@@ -337,7 +344,7 @@ type MultiTierRateLimiter struct {
 }
 
 // NewMultiTierRateLimiter creates a multi-tier rate limiter
-func NewMultiTierRateLimiter(client *redis.Client, tiers map[string]struct {
+func NewMultiTierRateLimiter(client RedisClientInterface, tiers map[string]struct {
 	Limit  int64
 	Window time.Duration
 	Prefix string

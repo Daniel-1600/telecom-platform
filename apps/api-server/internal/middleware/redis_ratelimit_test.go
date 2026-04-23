@@ -19,12 +19,16 @@ type MockRedisClient struct {
 }
 
 func (m *MockRedisClient) Eval(ctx context.Context, script string, keys []string, args ...interface{}) *redis.Cmd {
-	args = append([]interface{}{script, keys}, args...)
-	return m.Called(args...).Get(0).(*redis.Cmd)
+	callArgs := []any{script}
+	for _, key := range keys {
+		callArgs = append(callArgs, key)
+	}
+	callArgs = append(callArgs, args...)
+	return m.Called(callArgs...).Get(0).(*redis.Cmd)
 }
 
 func (m *MockRedisClient) Del(ctx context.Context, keys ...string) *redis.IntCmd {
-	return m.Called(keys...).Get(0).(*redis.IntCmd)
+	return m.Called(keys).Get(0).(*redis.IntCmd)
 }
 
 func (m *MockRedisClient) ZCount(ctx context.Context, key, min, max string) *redis.IntCmd {
@@ -48,7 +52,7 @@ func TestRedisRateLimiter_Allow(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock Redis client
 			mockClient := new(MockRedisClient)
-			
+
 			// Mock Redis response based on test case
 			var mockResult []interface{}
 			if tt.expected {
@@ -56,18 +60,17 @@ func TestRedisRateLimiter_Allow(t *testing.T) {
 			} else {
 				mockResult = []interface{}{int64(0), int64(0), int64(time.Now().Unix() + 60), int64(30)}
 			}
-			
+
 			cmd := redis.NewCmd(context.Background())
 			cmd.SetVal(mockResult)
 			mockClient.On("Eval", mock.AnythingOfType("[]interface {}")).Return(cmd)
 
-			// Create rate limiter
-			limiter := NewRedisRateLimiter(&redis.Client{}, "test", tt.limit, tt.window)
-			limiter.client = mockClient // Replace with mock
+			// Create rate limiter with mock client
+			limiter := NewRedisRateLimiter(mockClient, "test", tt.limit, tt.window)
 
 			// Test rate limiting
 			result, err := limiter.Allow(context.Background(), "test-key")
-			
+
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.Equal(t, tt.expected, result.Allowed)
@@ -80,9 +83,9 @@ func TestRedisRateLimitMiddleware(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name           string
-		keyExtractor   func(*gin.Context) string
-		expectedStatus int
+		name              string
+		keyExtractor      func(*gin.Context) string
+		expectedStatus    int
 		shouldHaveHeaders bool
 	}{
 		{
@@ -90,7 +93,7 @@ func TestRedisRateLimitMiddleware(t *testing.T) {
 			keyExtractor: func(c *gin.Context) string {
 				return "127.0.0.1"
 			},
-			expectedStatus: http.StatusOK,
+			expectedStatus:    http.StatusOK,
 			shouldHaveHeaders: true,
 		},
 		{
@@ -98,7 +101,7 @@ func TestRedisRateLimitMiddleware(t *testing.T) {
 			keyExtractor: func(c *gin.Context) string {
 				return ""
 			},
-			expectedStatus: http.StatusOK,
+			expectedStatus:    http.StatusOK,
 			shouldHaveHeaders: false,
 		},
 	}
@@ -107,15 +110,14 @@ func TestRedisRateLimitMiddleware(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock Redis client
 			mockClient := new(MockRedisClient)
-			
+
 			// Mock successful rate limit check
 			cmd := redis.NewCmd(context.Background())
 			cmd.SetVal([]interface{}{int64(1), int64(4), int64(time.Now().Unix() + 60)})
 			mockClient.On("Eval", mock.AnythingOfType("[]interface {}")).Return(cmd)
 
-			// Create rate limiter
-			limiter := NewRedisRateLimiter(&redis.Client{}, "test", 5, time.Minute)
-			limiter.client = mockClient // Replace with mock
+			// Create rate limiter with mock client
+			limiter := NewRedisRateLimiter(mockClient, "test", 5, time.Minute)
 
 			// Create Gin router with middleware
 			router := gin.New()
@@ -178,7 +180,7 @@ func TestUserKeyExtractor(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		userID   interface{}
+		userID   any
 		clientIP string
 		expected string
 	}{
@@ -271,7 +273,7 @@ func TestMultiTierRateLimiter(t *testing.T) {
 	mockClient.On("Eval", mock.AnythingOfType("[]interface {}")).Return(freeCmd).Once()
 	mockClient.On("Eval", mock.AnythingOfType("[]interface {}")).Return(premiumCmd).Once()
 
-	// Create multi-tier rate limiter
+	// Create multi-tier rate limiter with mock client
 	tiers := map[string]struct {
 		Limit  int64
 		Window time.Duration
@@ -281,16 +283,7 @@ func TestMultiTierRateLimiter(t *testing.T) {
 		"premium": {Limit: 100, Window: time.Minute, Prefix: "premium"},
 	}
 
-	multiLimiter := NewMultiTierRateLimiter(&redis.Client{}, tiers)
-	
-	// Replace client with mock for testing
-	for tier, limiter := range multiLimiter.limiters {
-		if tier == "free" {
-			limiter.client = mockClient
-		} else if tier == "premium" {
-			limiter.client = mockClient
-		}
-	}
+	multiLimiter := NewMultiTierRateLimiter(mockClient, tiers)
 
 	// Test free tier
 	result, err := multiLimiter.CheckTier(context.Background(), "free", "user123")
@@ -313,8 +306,7 @@ func TestRedisRateLimiter_Reset(t *testing.T) {
 	cmd.SetVal(1)
 	mockClient.On("Del", "test:user123").Return(cmd)
 
-	limiter := NewRedisRateLimiter(&redis.Client{}, "test", 10, time.Minute)
-	limiter.client = mockClient
+	limiter := NewRedisRateLimiter(mockClient, "test", 10, time.Minute)
 
 	err := limiter.Reset(context.Background(), "user123")
 	assert.NoError(t, err)
@@ -328,8 +320,7 @@ func TestRedisRateLimiter_GetStats(t *testing.T) {
 	cmd.SetVal(3)
 	mockClient.On("ZCount", "test:user123", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(cmd)
 
-	limiter := NewRedisRateLimiter(&redis.Client{}, "test", 10, time.Minute)
-	limiter.client = mockClient
+	limiter := NewRedisRateLimiter(mockClient, "test", 10, time.Minute)
 
 	result, err := limiter.GetStats(context.Background(), "user123")
 	assert.NoError(t, err)

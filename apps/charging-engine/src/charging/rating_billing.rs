@@ -1,7 +1,7 @@
 use chrono::Utc;
 use tracing::{info, debug, warn};
 
-use super::types::{UsageEvent, UsageType, RatingPlan};
+use super::types::{UsageEvent, UsageType};
 use crate::errors::{ChargingError, ChargingResult, ErrorContext};
 
 impl super::ChargingEngine {
@@ -10,8 +10,10 @@ impl super::ChargingEngine {
         let account = self.get_subscriber_account(&event.imsi).await?;
         let account = account.ok_or_else(|| ChargingError::SubscriberNotFound(event.imsi.clone()))?;
 
-        // Get rating plan (simplified - in real implementation this would be more complex)
-        let plan = self.get_rating_plan("basic") // Default to basic plan for now
+        // Get rating plan from Postgres (simplified - defaults to basic).
+        let plan = self
+            .get_rating_plan("basic")
+            .await?
             .ok_or_else(|| ChargingError::RatingPlanNotFound("basic".to_string()))?;
 
         let cost = match event.usage_type {
@@ -126,18 +128,18 @@ impl super::ChargingEngine {
 
     pub async fn generate_invoice(&self, imsi: &str, billing_period: &str) -> ChargingResult<f64> {
         // Get all usage events for the billing period
-        let mut conn = self.redis_client.get_async_connection().await
-            .context("Failed to get Redis connection")?;
+        let mut conn = self.redis_client.get_multiplexed_async_connection().await
+            .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
 
         let pattern = format!("usage:{}:*", imsi);
-        let keys: Vec<String> = conn.keys(&pattern).await
-            .context("Failed to get usage keys")?;
+        let keys: Vec<String> = redis::AsyncCommands::keys(&mut conn, &pattern).await
+            .map_err(|e| ChargingError::RedisOperation(e.to_string()))?;
 
         let mut total_cost = 0.0;
         let mut usage_count = 0;
 
         for key in keys {
-            if let Ok(Some(event)) = conn.get::<_, Option<UsageEvent>>(&key).await {
+            if let Ok(Some(event)) = redis::AsyncCommands::get::<_, Option<UsageEvent>>(&mut conn, &key).await {
                 // Filter by billing period (simplified)
                 total_cost += event.cost;
                 usage_count += 1;
@@ -151,23 +153,23 @@ impl super::ChargingEngine {
     }
 
     pub async fn apply_monthly_fees(&self) -> ChargingResult<u32> {
-        let mut conn = self.redis_client.get_async_connection().await
-            .context("Failed to get Redis connection")?;
+        let mut conn = self.redis_client.get_multiplexed_async_connection().await
+            .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
 
         let pattern = "account:*".to_string();
-        let keys: Vec<String> = conn.keys(&pattern).await
-            .context("Failed to get account keys")?;
+        let keys: Vec<String> = redis::AsyncCommands::keys(&mut conn, &pattern).await
+            .map_err(|e| ChargingError::RedisOperation(e.to_string()))?;
 
         let mut processed_accounts = 0;
 
         for key in keys {
-            if let Ok(Some(mut account)) = conn.get::<_, Option<crate::charging_types::SubscriberAccount>>(&key).await {
-                // Get rating plan and apply monthly fee
-                if let Some(plan) = self.get_rating_plan("basic") { // Simplified
+            if let Ok(Some(mut account)) = redis::AsyncCommands::get::<_, Option<crate::charging::types::SubscriberAccount>>(&mut conn, &key).await {
+                // Get rating plan from Postgres and apply monthly fee.
+                if let Ok(Some(plan)) = self.get_rating_plan("basic").await {
                     account.balance -= (plan.monthly_fee * 100.0) as i64; // Convert to cents
                     account.last_updated = Utc::now();
-                    
-                    let _: () = conn.set(&key, &account).await.unwrap_or(());
+
+                    let _: () = redis::AsyncCommands::set(&mut conn, &key, &account).await.unwrap_or(());
                     processed_accounts += 1;
                 }
             }

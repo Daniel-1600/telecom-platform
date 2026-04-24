@@ -42,7 +42,16 @@ func main() {
 	}))
 	router.Use(gin.Recovery())
 
-	profileRepo := repository.NewInMemoryProfileStore()
+	dsn := handler.GetEnv("DATABASE_DSN", "")
+	if dsn == "" {
+		handler.Logger.Fatal().Msg("DATABASE_DSN is required (no in-memory fallback)")
+	}
+	profileRepo, err := repository.NewPostgresProfileStore(dsn)
+	if err != nil {
+		handler.Logger.Fatal().Err(err).Msg("Failed to connect to Postgres")
+	}
+	defer profileRepo.Close()
+
 	setupRoutes(router, client, profileRepo)
 
 	handler.Logger.Info().Str("port", port).Msg("Carrier Connector API server starting")

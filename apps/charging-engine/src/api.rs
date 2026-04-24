@@ -1,51 +1,16 @@
 use axum::{
     extract::{Path, State},
-    routing::{delete, get, post, put},
-    Json, Router,
+    response::IntoResponse,
+    Json,
 };
-use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
-use crate::errors::{ChargingError, ChargingResult, validate_ip, validate_bytes, ErrorContext, log_error, validate_amount, validate_session_id};
+use crate::errors::{ChargingError, ChargingResult, ErrorContext, log_error, validate_ip, validate_bytes, validate_amount, validate_session_id};
 use crate::models::*;
 
 #[derive(Clone)]
 pub struct AppState {
     pub charging_engine: std::sync::Arc<crate::charging::ChargingEngine>,
-}
-
-pub fn create_router(state: AppState) -> Router {
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
-
-    Router::new()
-        .route("/v1/credit/:ip/check", post(check_credit))
-        .route("/v1/credit/:ip/deduct", post(deduct_credit))
-        .route("/v1/credit/:ip/add", post(add_credit))
-        .route("/v1/credit/:ip/balance", get(get_balance))
-        .route("/v1/subscriber/:imsi", get(get_subscriber))
-        .route("/v1/subscriber/:imsi", put(update_subscriber))
-        .route("/v1/usage", post(record_usage))
-        .route("/v1/rating-plans", get(list_rating_plans))
-        .route("/v1/rating-plans/:id", get(get_rating_plan))
-        .route("/v1/rating-plans", post(add_rating_plan))
-        .route("/v1/rating-plans/:id", delete(remove_rating_plan))
-        .route("/v1/block/:ip", post(block_user))
-        .route("/v1/unblock/:ip", post(unblock_user))
-        .route("/v1/blocked/:ip", get(is_user_blocked))
-        .route("/v1/stats", get(get_system_stats))
-        .route("/v1/metrics", get(get_performance_metrics))
-        .route("/v1/errors", get(get_error_stats))
-        .route("/v1/sync/start", post(start_sync))
-        .route("/v1/health/detailed", get(detailed_health_check))
-        .route("/v1/engine/start", post(engine_start))
-        .route("/v1/engine/stop", post(engine_stop))
-        .route("/v1/engine/uptime", get(engine_uptime))
-        .route("/health", get(health_check))
-        .layer(cors)
-        .with_state(state)
 }
 
 /// POST /v1/credit/:ip/check
@@ -55,7 +20,6 @@ pub async fn check_credit(
     State(state): State<AppState>,
     Json(req): Json<CreditCheckRequest>,
 ) -> ChargingResult<Json<CreditCheckResponse>> {
-    // Validate input
     validate_ip(&ip)?;
     validate_bytes(req.bytes_requested)?;
 
@@ -87,7 +51,6 @@ pub async fn deduct_credit(
     State(state): State<AppState>,
     Json(req): Json<DeductRequest>,
 ) -> ChargingResult<()> {
-    // Validate input
     validate_ip(&ip)?;
     validate_bytes(req.bytes_used)?;
     validate_amount(req.bytes_used as f64)?;
@@ -110,7 +73,6 @@ pub async fn add_credit(
     State(state): State<AppState>,
     Json(req): Json<AddCreditRequest>,
 ) -> ChargingResult<()> {
-    // Validate input
     validate_ip(&ip)?;
     validate_bytes(req.bytes_to_add)?;
     validate_amount(req.bytes_to_add as f64)?;
@@ -132,7 +94,6 @@ pub async fn get_balance(
     Path(ip): Path<String>,
     State(state): State<AppState>,
 ) -> ChargingResult<Json<BalanceResponse>> {
-    // Validate input
     validate_ip(&ip)?;
 
     let balance = state.charging_engine.get_balance(&ip).await
@@ -185,7 +146,6 @@ pub async fn record_usage(
     
     validate_session_id(session_id)?;
 
-    // Create and record usage event
     let event = crate::charging::types::UsageEvent {
         imsi: imsi.to_string(),
         session_id: session_id.to_string(),

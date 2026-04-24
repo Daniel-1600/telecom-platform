@@ -24,7 +24,6 @@ pub enum AccountStatus {
     Blocked,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageEvent {
     pub imsi: String,
@@ -36,7 +35,6 @@ pub struct UsageEvent {
     pub cost: f64,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum UsageType {
     Data,

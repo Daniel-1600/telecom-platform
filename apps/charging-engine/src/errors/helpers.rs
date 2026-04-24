@@ -68,23 +68,6 @@ pub fn validate_bytes(bytes: u64) -> ChargingResult<()> {
     Ok(())
 }
 
-#[allow(dead_code)]
-pub fn validate_imsi(imsi: &str) -> ChargingResult<()> {
-    if imsi.is_empty() {
-        return Err(ChargingError::InvalidInput("IMSI cannot be empty".to_string()));
-    }
-
-    if imsi.len() < 15 || imsi.len() > 15 {
-        return Err(ChargingError::InvalidInput("IMSI must be exactly 15 digits".to_string()));
-    }
-
-    if !imsi.chars().all(|c| c.is_ascii_digit()) {
-        return Err(ChargingError::InvalidInput("IMSI must contain only digits".to_string()));
-    }
-
-    Ok(())
-}
-
 pub fn validate_session_id(session_id: &str) -> ChargingResult<()> {
     if session_id.is_empty() {
         return Err(ChargingError::InvalidInput("Session ID cannot be empty".to_string()));
@@ -160,9 +143,6 @@ pub fn log_error(error: &ChargingError) {
         }
         ChargingError::SerializationError(msg) => {
             tracing::error!("Serialization error: {}", msg);
-        }
-        ChargingError::ConfigurationError(msg) => {
-            tracing::error!("Configuration error: {}", msg);
         }
         ChargingError::InternalError(msg) => {
             tracing::error!("Internal error: {}", msg);

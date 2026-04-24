@@ -13,8 +13,6 @@ pub enum ChargingError {
     UsageBlocked(String),
     InvalidInput(String),
     SerializationError(String),
-    #[allow(dead_code)]
-    ConfigurationError(String),
     InternalError(String),
 }
 
@@ -31,7 +29,6 @@ impl fmt::Display for ChargingError {
             ChargingError::UsageBlocked(reason) => write!(f, "Usage blocked: {}", reason),
             ChargingError::InvalidInput(msg) => write!(f, "Invalid input: {}", msg),
             ChargingError::SerializationError(msg) => write!(f, "Serialization error: {}", msg),
-            ChargingError::ConfigurationError(msg) => write!(f, "Configuration error: {}", msg),
             ChargingError::InternalError(msg) => write!(f, "Internal error: {}", msg),
         }
     }
@@ -52,7 +49,6 @@ impl IntoResponse for ChargingError {
             ChargingError::UsageBlocked(reason) => (StatusCode::FORBIDDEN, reason),
             ChargingError::InvalidInput(msg) => (StatusCode::BAD_REQUEST, msg),
             ChargingError::SerializationError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
-            ChargingError::ConfigurationError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             ChargingError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
 

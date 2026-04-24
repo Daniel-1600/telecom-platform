@@ -1,9 +1,9 @@
-mod api;
 mod charging;
 mod monitoring;
 mod errors;
 mod models;
 mod routes;
+mod handlers;
 
 use anyhow::Result;
 use std::sync::Arc;

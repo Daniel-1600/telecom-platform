@@ -4,7 +4,7 @@ use axum::{
 };
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::api::{
+use crate::handlers::{
     add_credit, add_rating_plan, block_user, check_credit, deduct_credit, detailed_health_check,
     engine_start, engine_stop, engine_uptime, get_balance, get_error_stats, get_performance_metrics,
     get_rating_plan, get_subscriber, get_system_stats, is_user_blocked, list_rating_plans,

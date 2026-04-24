@@ -1,22 +1,10 @@
-// Package handlers hosts HTTP handler types split by domain:
-//
-//	platform_services.go     - ServicesHandler (Kubernetes services)
-//	platform_monitoring.go   - MonitoringHandler (Prometheus metrics)
-//	platform_deployments.go  - DeploymentsHandler (deployment lifecycle)
-//	platform_plugins.go      - PluginsHandler (plugin lifecycle)
-//	platform_automation.go   - AutomationHandler (automations, schedules)
-//	platform_config.go       - ConfigHandler (runtime config)
-//	platform_chaos.go        - ChaosHandler (chaos experiments)
-//	platform_billing.go      - BillingHandler (invoices, payments)
-//
-// This file holds only the shared ErrorResponse envelope and small helpers.
 package handlers
 
 import (
-"net/http"
-"strconv"
+	"net/http"
+	"strconv"
 
-"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
 )
 
 // ErrorResponse is a shared error envelope used across platform handlers.

@@ -130,7 +130,6 @@ impl super::ChargingEngine {
     }
 
     pub async fn generate_invoice(&self, imsi: &str, _billing_period: &str) -> ChargingResult<f64> {
-        // Get all usage events for the billing period
         let mut conn = self.redis_client.get_multiplexed_async_connection().await
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
 

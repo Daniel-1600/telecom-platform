@@ -1,15 +1,17 @@
+use tracing::{info, debug};
+use std::time::SystemTime;
 
-use crate::errors::ChargingResult;
+use crate::errors::{ChargingError, ChargingResult, ErrorContext};
+use super::types::{SystemStats, HealthStatus};
 
+#[allow(dead_code)]
 impl crate::charging::ChargingEngine {
     pub async fn get_performance_metrics(&self) -> ChargingResult<PerformanceMetrics> {
         let mut conn = self.redis_client.get_multiplexed_async_connection().await
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
 
-        // Get Redis info
         let info: String = redis::cmd("INFO").query_async(&mut conn).await.unwrap_or_default();
         
-        // Parse Redis info for metrics (simplified)
         let connected_clients = self.extract_metric(&info, "connected_clients");
         let used_memory = self.extract_metric(&info, "used_memory");
         let total_commands_processed = self.extract_metric(&info, "total_commands_processed");
@@ -37,7 +39,6 @@ impl crate::charging::ChargingEngine {
         let mut conn = self.redis_client.get_multiplexed_async_connection().await
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
 
-        // Get Redis instantaneous ops per second
         let info: String = redis::cmd("INFO").query_async(&mut conn).await.unwrap_or_default();
         
         for line in info.lines() {
@@ -50,7 +51,6 @@ impl crate::charging::ChargingEngine {
             }
         }
         
-        // Fallback: calculate from total commands processed over time
         let total_commands = self.extract_metric(&info, "total_commands_processed");
         let uptime_seconds = self.get_uptime().await?;
         
@@ -65,10 +65,8 @@ impl crate::charging::ChargingEngine {
         let mut conn = self.redis_client.get_multiplexed_async_connection().await
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
 
-        // Track response times in Redis for calculation
         let response_times_key = "metrics:response_times";
         
-        // Get recent response times (last 100 operations)
         let response_times_raw: Vec<String> = redis::AsyncCommands::lrange(&mut conn, response_times_key, 0, 99)
             .await
             .unwrap_or_default();
@@ -78,11 +76,9 @@ impl crate::charging::ChargingEngine {
             .collect();
 
         if response_times.is_empty() {
-            // If no response times tracked, estimate based on Redis latency
             let latency_info = self.get_redis_latency(&mut conn).await?;
             Ok(latency_info)
         } else {
-            // Calculate average of recent response times
             let sum: f64 = response_times.iter().sum();
             Ok(sum / response_times.len() as f64)
         }
@@ -91,7 +87,6 @@ impl crate::charging::ChargingEngine {
     async fn get_redis_latency(&self, conn: &mut redis::aio::MultiplexedConnection) -> ChargingResult<f64> {
         use std::time::Instant;
         
-        // Measure Redis ping latency
         let start = Instant::now();
         let _: String = redis::cmd("PING").query_async(conn).await.unwrap_or_else(|_| "PONG".to_string());
         let latency = start.elapsed();
@@ -135,9 +130,19 @@ impl crate::charging::ChargingEngine {
         let last_error: Option<String> = redis::AsyncCommands::get(&mut conn, "last_error").await.unwrap_or(None);
         Ok(last_error)
     }
+
+    async fn get_uptime(&self) -> ChargingResult<u64> {
+        match self.startup_time.elapsed() {
+            Ok(duration) => Ok(duration.as_secs()),
+            Err(_) => Ok(std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs())
+        }
+    }
 }
 
-
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct PerformanceMetrics {
     pub connected_clients: u64,
@@ -147,6 +152,7 @@ pub struct PerformanceMetrics {
     pub average_response_time: f64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ErrorStats {
     pub total_errors: u64,

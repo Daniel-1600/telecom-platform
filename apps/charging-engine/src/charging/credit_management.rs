@@ -1,9 +1,11 @@
+use redis::AsyncCommands;
 use tracing::{info, warn, debug};
 
 use super::types::{SubscriberAccount, UsageEvent};
-use crate::errors::{ChargingError, ChargingResult, validate_imsi, validate_session_id};
+use crate::errors::{ChargingError, ChargingResult, ErrorContext};
 
 impl crate::charging::ChargingEngine {
+    #[allow(dead_code)]
     pub async fn get_balance(&self, ip: &str) -> ChargingResult<u64> {
         let mut conn = self.redis_client.get_multiplexed_async_connection().await
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
@@ -16,6 +18,7 @@ impl crate::charging::ChargingEngine {
         Ok(balance)
     }
 
+    #[allow(dead_code)]
     pub async fn add_credit(&self, ip: &str, bytes_to_add: u64) -> ChargingResult<u64> {
         let mut conn = self.redis_client.get_multiplexed_async_connection().await
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
@@ -98,8 +101,6 @@ impl crate::charging::ChargingEngine {
     }
 
     pub async fn get_subscriber_account(&self, imsi: &str) -> ChargingResult<Option<SubscriberAccount>> {
-        validate_imsi(imsi)?;
-
         let mut conn = self.redis_client.get_multiplexed_async_connection().await
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
 
@@ -107,6 +108,7 @@ impl crate::charging::ChargingEngine {
         let account: Option<SubscriberAccount> = redis::AsyncCommands::get(&mut conn, &key).await
             .map_err(|e| crate::errors::ChargingError::RedisOperation(e.to_string()))?;
 
+        info!("Retrieved subscriber account for IMSI: {}", imsi);
         Ok(account)
     }
 
@@ -123,8 +125,6 @@ impl crate::charging::ChargingEngine {
     }
 
     pub async fn record_usage_event(&self, event: &UsageEvent) -> ChargingResult<()> {
-        validate_session_id(&event.session_id)?;
-
         let mut conn = self.redis_client.get_multiplexed_async_connection().await
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
 
@@ -132,10 +132,7 @@ impl crate::charging::ChargingEngine {
         let _: () = redis::AsyncCommands::set(&mut conn, &key, event).await
             .map_err(|e| crate::errors::ChargingError::RedisOperation(e.to_string()))?;
 
-        // Set expiration for usage events (7 days)
-        let _: () = redis::AsyncCommands::expire(&mut conn, &key, 604800).await.unwrap_or(());
-
-        info!("Recorded usage event for IMSI: {}, cost: ${:.4}", event.imsi, event.cost);
+        info!("Recorded usage event for IMSI: {}, session: {}", event.imsi, event.session_id);
         Ok(())
     }
 }

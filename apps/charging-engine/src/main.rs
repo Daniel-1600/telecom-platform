@@ -3,12 +3,13 @@ mod charging;
 mod monitoring;
 mod errors;
 mod models;
+mod routes;
 
 use anyhow::Result;
 use std::sync::Arc;
 use tracing::info;
 
-use api::create_router;
+use routes::create_router;
 use charging::{ChargingEngine, RatingPlansRepo};
 
 #[tokio::main]
@@ -43,7 +44,7 @@ async fn main() -> Result<()> {
     info!("Connected to Redis successfully");
 
     // Create application state
-    let state = api::AppState {
+    let state = crate::models::AppState {
         charging_engine,
     };
 

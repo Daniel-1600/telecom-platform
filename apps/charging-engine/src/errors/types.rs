@@ -10,12 +10,8 @@ pub enum ChargingError {
     SubscriberNotFound(String),
     RatingPlanNotFound(String),
     InsufficientCredit { available: u64, requested: u64 },
-    #[allow(dead_code)]
-    UsageBlocked(String),
     InvalidInput(String),
     SerializationError(String),
-    #[allow(dead_code)]
-    ConfigurationError(String),
     InternalError(String),
 }
 
@@ -29,10 +25,8 @@ impl fmt::Display for ChargingError {
             ChargingError::InsufficientCredit { available, requested } => {
                 write!(f, "Insufficient credit: available={}, requested={}", available, requested)
             }
-            ChargingError::UsageBlocked(reason) => write!(f, "Usage blocked: {}", reason),
             ChargingError::InvalidInput(msg) => write!(f, "Invalid input: {}", msg),
             ChargingError::SerializationError(msg) => write!(f, "Serialization error: {}", msg),
-            ChargingError::ConfigurationError(msg) => write!(f, "Configuration error: {}", msg),
             ChargingError::InternalError(msg) => write!(f, "Internal error: {}", msg),
         }
     }
@@ -43,22 +37,20 @@ impl std::error::Error for ChargingError {}
 impl IntoResponse for ChargingError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
-            ChargingError::RedisConnection(_) => (StatusCode::SERVICE_UNAVAILABLE, "Redis connection error"),
-            ChargingError::RedisOperation(_) => (StatusCode::SERVICE_UNAVAILABLE, "Redis operation error"),
-            ChargingError::SubscriberNotFound(_) => (StatusCode::NOT_FOUND, "Subscriber not found"),
-            ChargingError::RatingPlanNotFound(_) => (StatusCode::NOT_FOUND, "Rating plan not found"),
-            ChargingError::InsufficientCredit { .. } => (StatusCode::PAYMENT_REQUIRED, "Insufficient credit"),
-            ChargingError::UsageBlocked(_) => (StatusCode::FORBIDDEN, "Usage blocked"),
-            ChargingError::InvalidInput(_) => (StatusCode::BAD_REQUEST, "Invalid input"),
-            ChargingError::SerializationError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Serialization error"),
-            ChargingError::ConfigurationError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Configuration error"),
-            ChargingError::InternalError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal error"),
+            ChargingError::RedisConnection(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            ChargingError::RedisOperation(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            ChargingError::SubscriberNotFound(imsi) => (StatusCode::NOT_FOUND, format!("Subscriber not found: {}", imsi)),
+            ChargingError::RatingPlanNotFound(plan_id) => (StatusCode::NOT_FOUND, format!("Rating plan not found: {}", plan_id)),
+            ChargingError::InsufficientCredit { available, requested } => {
+                (StatusCode::PAYMENT_REQUIRED, format!("Insufficient credit: available={}, requested={}", available, requested))
+            }
+            ChargingError::InvalidInput(msg) => (StatusCode::BAD_REQUEST, msg),
+            ChargingError::SerializationError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            ChargingError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
 
         let body = json!({
-            "error": error_message,
-            "message": self.to_string(),
-            "code": status.as_u16()
+            "error": error_message
         });
 
         (status, axum::Json(body)).into_response()

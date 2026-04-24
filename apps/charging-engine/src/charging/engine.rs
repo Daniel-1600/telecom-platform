@@ -35,27 +35,6 @@ impl ChargingEngine {
         })
     }
 
-    /// Fetch a rating plan by id from Postgres. Returns `Ok(None)` if unknown.
-    pub async fn get_rating_plan(&self, plan_id: &str) -> ChargingResult<Option<RatingPlan>> {
-        self.plans.get(plan_id).await
-    }
-
-    /// Upsert a rating plan in Postgres.
-    pub async fn add_rating_plan(&self, plan: RatingPlan) -> ChargingResult<()> {
-        self.plans.upsert(&plan).await
-    }
-
-    /// Soft-delete a rating plan in Postgres (marks inactive).
-    pub async fn remove_rating_plan(&self, plan_id: &str) -> ChargingResult<bool> {
-        self.plans.deactivate(plan_id).await
-    }
-
-    /// List all active rating plans from Postgres.
-    pub async fn list_rating_plans(&self) -> ChargingResult<Vec<RatingPlan>> {
-        let map = self.plans.list_map().await?;
-        Ok(map.into_values().collect())
-    }
-
     /// Confirm Redis connectivity at startup.
     pub async fn test_connection(&self) -> ChargingResult<()> {
         let mut conn = self
@@ -69,6 +48,7 @@ impl ChargingEngine {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn start(&self) -> ChargingResult<()> {
         info!(
             "Starting charging engine with sync interval: {:?}",
@@ -79,15 +59,36 @@ impl ChargingEngine {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn stop(&self) -> ChargingResult<()> {
         info!("Stopping charging engine");
         Ok(())
     }
 
-    /// Process-uptime since construction.
+    #[allow(dead_code)]
     pub fn uptime(&self) -> Duration {
         self.startup_time
             .elapsed()
             .unwrap_or_else(|_| Duration::from_secs(0))
+    }
+
+    #[allow(dead_code)]
+    pub async fn get_rating_plan(&self, plan_id: &str) -> ChargingResult<Option<RatingPlan>> {
+        self.plans.get(plan_id).await
+    }
+
+    #[allow(dead_code)]
+    pub async fn add_rating_plan(&self, plan: RatingPlan) -> ChargingResult<()> {
+        self.plans.upsert(&plan).await
+    }
+
+    #[allow(dead_code)]
+    pub async fn remove_rating_plan(&self, plan_id: &str) -> ChargingResult<bool> {
+        self.plans.deactivate(plan_id).await
+    }
+
+    #[allow(dead_code)]
+    pub async fn list_rating_plans(&self) -> ChargingResult<Vec<RatingPlan>> {
+        self.plans.list().await
     }
 }

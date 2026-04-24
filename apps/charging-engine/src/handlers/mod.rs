@@ -1,4 +1,3 @@
-// Handler modules
 pub mod block;
 pub mod credit;
 pub mod engine;
@@ -8,7 +7,6 @@ pub mod rating;
 pub mod subscriber;
 pub mod usage;
 
-// Re-export all handlers for convenience
 pub use block::{block_user, is_user_blocked, unblock_user};
 pub use credit::{add_credit, check_credit, deduct_credit, get_balance};
 pub use engine::{engine_start, engine_stop, engine_uptime};

@@ -1,9 +1,5 @@
-use tracing::{info, debug};
-use std::time::SystemTime;
-
 use crate::errors::ChargingResult;
 
-#[allow(dead_code)]
 impl crate::charging::ChargingEngine {
     pub async fn get_performance_metrics(&self) -> ChargingResult<PerformanceMetrics> {
         let mut conn = self.redis_client.get_multiplexed_async_connection().await

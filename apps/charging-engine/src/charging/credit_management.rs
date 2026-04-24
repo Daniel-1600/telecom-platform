@@ -1,11 +1,9 @@
-use redis::AsyncCommands;
 use tracing::{info, warn, debug};
 
 use super::types::{SubscriberAccount, UsageEvent};
 use crate::errors::{ChargingError, ChargingResult};
 
 impl crate::charging::ChargingEngine {
-    #[allow(dead_code)]
     pub async fn get_balance(&self, ip: &str) -> ChargingResult<u64> {
         let mut conn = self.redis_client.get_multiplexed_async_connection().await
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
@@ -18,7 +16,6 @@ impl crate::charging::ChargingEngine {
         Ok(balance)
     }
 
-    #[allow(dead_code)]
     pub async fn add_credit(&self, ip: &str, bytes_to_add: u64) -> ChargingResult<u64> {
         let mut conn = self.redis_client.get_multiplexed_async_connection().await
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
@@ -67,6 +64,13 @@ impl crate::charging::ChargingEngine {
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
 
         let key = format!("block:{}", ip);
+        let blocked: Option<String> = redis::AsyncCommands::get(&mut conn, &key).await
+            .map_err(|e| crate::errors::ChargingError::RedisOperation(e.to_string()))?;
+
+        if blocked.is_some() {
+            return Err(ChargingError::UsageBlocked(format!("User IP {} is already blocked", ip)));
+        }
+
         let _: () = redis::AsyncCommands::set(&mut conn, &key, "blocked").await
             .map_err(|e| crate::errors::ChargingError::RedisOperation(e.to_string()))?;
 

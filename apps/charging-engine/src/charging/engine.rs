@@ -48,7 +48,6 @@ impl ChargingEngine {
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub async fn start(&self) -> ChargingResult<()> {
         info!(
             "Starting charging engine with sync interval: {:?}",
@@ -59,35 +58,29 @@ impl ChargingEngine {
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub async fn stop(&self) -> ChargingResult<()> {
         info!("Stopping charging engine");
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub fn uptime(&self) -> Duration {
         self.startup_time
             .elapsed()
             .unwrap_or_else(|_| Duration::from_secs(0))
     }
 
-    #[allow(dead_code)]
     pub async fn get_rating_plan(&self, plan_id: &str) -> ChargingResult<Option<RatingPlan>> {
         self.plans.get(plan_id).await
     }
 
-    #[allow(dead_code)]
     pub async fn add_rating_plan(&self, plan: RatingPlan) -> ChargingResult<()> {
         self.plans.upsert(&plan).await
     }
 
-    #[allow(dead_code)]
     pub async fn remove_rating_plan(&self, plan_id: &str) -> ChargingResult<bool> {
         self.plans.deactivate(plan_id).await
     }
 
-    #[allow(dead_code)]
     pub async fn list_rating_plans(&self) -> ChargingResult<Vec<RatingPlan>> {
         self.plans.list().await
             .map_err(|e| crate::errors::ChargingError::RedisOperation(e.to_string()))

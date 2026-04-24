@@ -4,7 +4,6 @@ use tracing::{info, debug, warn};
 use super::types::{UsageEvent, UsageType};
 use crate::errors::{ChargingError, ChargingResult, validate_amount};
 
-#[allow(dead_code)]
 impl super::ChargingEngine {
     pub async fn calculate_usage_cost(&self, event: &UsageEvent) -> ChargingResult<f64> {
         // Get subscriber account to determine rating plan

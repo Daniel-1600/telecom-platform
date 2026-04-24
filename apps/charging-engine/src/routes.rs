@@ -9,6 +9,7 @@ use crate::handlers::{
     engine_start, engine_stop, engine_uptime, get_balance, get_error_stats, get_performance_metrics,
     get_rating_plan, get_subscriber, get_system_stats, is_user_blocked, list_rating_plans,
     record_usage, remove_rating_plan, start_sync, unblock_user, update_subscriber, health_check,
+    calculate_usage_cost, rate_usage, process_usage, generate_invoice,
 };
 use crate::models::AppState;
 
@@ -42,6 +43,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/v1/engine/stop", post(engine_stop))
         .route("/v1/engine/uptime", get(engine_uptime))
         .route("/health", get(health_check))
+        .route("/v1/usage/calculate-cost", post(calculate_usage_cost))
+        .route("/v1/usage/rate", post(rate_usage))
+        .route("/v1/usage/process", post(process_usage))
+        .route("/v1/invoice/:imsi/:period", get(generate_invoice))
         .layer(cors)
         .with_state(state)
 }

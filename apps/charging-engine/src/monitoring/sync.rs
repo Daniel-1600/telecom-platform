@@ -5,7 +5,6 @@ use chrono::Datelike;
 use crate::errors::{ChargingResult, log_error};
 use crate::monitoring::types::{SystemStats, HealthStatus};
 
-#[allow(dead_code)]
 impl crate::charging::ChargingEngine {
     pub async fn start_background_sync(&self) -> ChargingResult<()> {
         let mut interval_timer = interval(self.sync_interval);

@@ -99,7 +99,6 @@ impl RatingPlansRepo {
         Ok(())
     }
 
-    #[allow(dead_code)]
     /// Fetch a single plan by id.
     pub async fn get(&self, plan_id: &str) -> ChargingResult<Option<RatingPlan>> {
         let row = sqlx::query(
@@ -118,7 +117,6 @@ impl RatingPlansRepo {
         Ok(row.map(row_to_plan))
     }
 
-    #[allow(dead_code)]
     /// Fetch all active plans as a HashMap for fast lookup.
     pub async fn list_map(&self) -> ChargingResult<HashMap<String, RatingPlan>> {
         let rows = sqlx::query(
@@ -198,7 +196,6 @@ impl RatingPlansRepo {
         Ok(())
     }
 
-    #[allow(dead_code)]
     /// Soft-delete a plan by marking it inactive.
     pub async fn deactivate(&self, plan_id: &str) -> ChargingResult<bool> {
         let result = sqlx::query(
@@ -213,7 +210,6 @@ impl RatingPlansRepo {
 }
 
 /// Map a Postgres row to a RatingPlan. Column order must match the SELECT.
-#[allow(dead_code)]
 fn row_to_plan(row: sqlx::postgres::PgRow) -> RatingPlan {
     RatingPlan {
         plan_id: row.get("plan_id"),

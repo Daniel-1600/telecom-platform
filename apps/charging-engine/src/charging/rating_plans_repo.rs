@@ -9,7 +9,7 @@ use sqlx::postgres::{PgPool, PgPoolOptions};
 use sqlx::Row;
 
 use super::types::RatingPlan;
-use crate::errors::{ChargingError, ChargingResult, ErrorContext};
+use crate::errors::ChargingResult;
 
 /// Repository for rating plans backed by Postgres.
 #[derive(Clone)]

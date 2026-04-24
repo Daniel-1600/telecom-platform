@@ -4,7 +4,7 @@ use tracing::info;
 
 use super::rating_plans_repo::RatingPlansRepo;
 use super::types::RatingPlan;
-use crate::errors::{ChargingResult, ErrorContext, ChargingError};
+use crate::errors::ChargingResult;
 
 /// ChargingEngine coordinates Redis-backed hot-path state (balances, sessions)
 /// and Postgres-backed configuration (rating plans) via `RatingPlansRepo`.

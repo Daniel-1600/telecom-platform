@@ -2,13 +2,14 @@ use chrono::Utc;
 use tracing::{info, debug, warn};
 
 use super::types::{UsageEvent, UsageType};
-use crate::errors::{ChargingError, ChargingResult, ErrorContext, validate_amount};
+use crate::errors::{ChargingError, ChargingResult, validate_amount};
 
+#[allow(dead_code)]
 impl super::ChargingEngine {
     pub async fn calculate_usage_cost(&self, event: &UsageEvent) -> ChargingResult<f64> {
         // Get subscriber account to determine rating plan
         let account = self.get_subscriber_account(&event.imsi).await?;
-        let account = account.ok_or_else(|| ChargingError::SubscriberNotFound(event.imsi.clone()))?;
+        let _account = account.ok_or_else(|| ChargingError::SubscriberNotFound(event.imsi.clone()))?;
 
         // Get rating plan from Postgres (simplified - defaults to basic).
         let plan = self
@@ -128,7 +129,7 @@ impl super::ChargingEngine {
         Ok(())
     }
 
-    pub async fn generate_invoice(&self, imsi: &str, billing_period: &str) -> ChargingResult<f64> {
+    pub async fn generate_invoice(&self, imsi: &str, _billing_period: &str) -> ChargingResult<f64> {
         // Get all usage events for the billing period
         let mut conn = self.redis_client.get_multiplexed_async_connection().await
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;

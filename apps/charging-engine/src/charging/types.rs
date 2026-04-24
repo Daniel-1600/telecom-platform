@@ -56,6 +56,7 @@ pub struct RatingPlan {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ChargingSession {
     pub session_id: String,
     pub imsi: String,
@@ -69,6 +70,7 @@ pub struct ChargingSession {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub enum SessionStatus {
     Active,
     Completed,
@@ -76,6 +78,7 @@ pub enum SessionStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ChargingRule {
     pub rule_id: String,
     pub name: String,
@@ -85,6 +88,7 @@ pub struct ChargingRule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct Condition {
     pub field: String,
     pub operator: String,
@@ -92,6 +96,7 @@ pub struct Condition {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct Action {
     pub action_type: String,
     pub parameters: std::collections::HashMap<String, String>,

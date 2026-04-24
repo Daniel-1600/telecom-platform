@@ -10,9 +10,11 @@ pub enum ChargingError {
     SubscriberNotFound(String),
     RatingPlanNotFound(String),
     InsufficientCredit { available: u64, requested: u64 },
+    #[allow(dead_code)]
     UsageBlocked(String),
     InvalidInput(String),
     SerializationError(String),
+    #[allow(dead_code)]
     ConfigurationError(String),
     InternalError(String),
 }

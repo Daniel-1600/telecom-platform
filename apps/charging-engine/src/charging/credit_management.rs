@@ -1,8 +1,7 @@
-use redis::AsyncCommands;
-use tracing::{info, warn, error, debug};
+use tracing::{info, warn, debug};
 
-use super::types::{SubscriberAccount, UsageEvent, ChargingSession};
-use crate::errors::{ChargingError, ChargingResult, ErrorContext, validate_imsi, validate_session_id, validate_bytes};
+use super::types::{SubscriberAccount, UsageEvent};
+use crate::errors::{ChargingError, ChargingResult, validate_imsi, validate_session_id};
 
 impl crate::charging::ChargingEngine {
     pub async fn get_balance(&self, ip: &str) -> ChargingResult<u64> {

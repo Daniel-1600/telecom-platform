@@ -1,8 +1,5 @@
-use tracing::{info, debug};
-use std::time::SystemTime;
 
-use crate::errors::{ChargingError, ChargingResult, ErrorContext};
-use super::types::{SystemStats, HealthStatus};
+use crate::errors::ChargingResult;
 
 impl crate::charging::ChargingEngine {
     pub async fn get_performance_metrics(&self) -> ChargingResult<PerformanceMetrics> {

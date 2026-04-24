@@ -1,9 +1,8 @@
-use tokio::time::{interval, sleep};
+use tokio::time::interval;
 use tracing::{info, warn, error, debug};
-use std::time::Duration;
 use chrono::Datelike;
 
-use crate::errors::{ChargingError, ChargingResult, ErrorContext, log_error};
+use crate::errors::{ChargingResult, log_error};
 use crate::monitoring::types::{SystemStats, HealthStatus};
 
 impl crate::charging::ChargingEngine {

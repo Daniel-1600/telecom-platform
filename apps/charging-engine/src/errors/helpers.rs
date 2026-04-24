@@ -1,4 +1,3 @@
-use anyhow::Context;
 
 use super::types::ChargingError;
 

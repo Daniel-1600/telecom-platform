@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct AppState {
     pub charging_engine: std::sync::Arc<crate::charging::ChargingEngine>,
 }

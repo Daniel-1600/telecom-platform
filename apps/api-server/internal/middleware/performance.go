@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"net/http"
 	"sync"
 	"time"
@@ -80,15 +80,23 @@ func (pm *PerformanceMiddleware) updateMetrics(statusCode int, responseTime time
 
 // logSlowRequest logs slow requests for monitoring
 func (pm *PerformanceMiddleware) logSlowRequest(c *gin.Context, responseTime time.Duration) {
-	// In production, this would go to a structured logging system
-	// For now, we'll use the standard logger
-	gin.DefaultWriter.Write(fmt.Appendf(nil,
-		"[SLOW REQUEST] %s %s - %v - Status: %d\n",
-		c.Request.Method,
-		c.Request.URL.Path,
-		responseTime,
-		c.Writer.Status(),
-	))
+	// Structured logging for slow requests
+	logData := map[string]any{
+		"level":         "warn",
+		"type":          "slow_request",
+		"method":        c.Request.Method,
+		"path":          c.Request.URL.Path,
+		"query":         c.Request.URL.RawQuery,
+		"response_time": responseTime.String(),
+		"status":        c.Writer.Status(),
+		"user_agent":    c.Request.UserAgent(),
+		"ip":            c.ClientIP(),
+		"timestamp":     time.Now().UTC().Format(time.RFC3339),
+	}
+
+	// Convert to JSON for structured logging
+	logJSON, _ := json.Marshal(logData)
+	gin.DefaultWriter.Write(append(logJSON, '\n'))
 }
 
 // GetMetrics returns current performance metrics

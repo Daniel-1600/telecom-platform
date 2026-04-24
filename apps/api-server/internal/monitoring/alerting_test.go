@@ -329,8 +329,13 @@ func TestAlertRule_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Basic validation - check if required fields are set
-			isValid := tt.rule.ID != "" && tt.rule.Name != "" && tt.rule.Query != ""
+			// Basic validation - check if required fields are set and severity is valid
+			validSeverities := map[string]bool{
+				string(SeverityInfo):     true,
+				string(SeverityWarning):  true,
+				string(SeverityCritical): true,
+			}
+			isValid := tt.rule.ID != "" && tt.rule.Name != "" && tt.rule.Query != "" && validSeverities[string(tt.rule.Severity)]
 			assert.Equal(t, tt.isValid, isValid)
 		})
 	}

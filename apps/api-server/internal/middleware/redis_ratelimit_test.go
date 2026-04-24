@@ -272,8 +272,8 @@ func TestMultiTierRateLimiter(t *testing.T) {
 	premiumCmd := redis.NewCmd(context.Background())
 	premiumCmd.SetVal([]interface{}{int64(1), int64(99), int64(time.Now().Unix() + 60)})
 
-	mockClient.On("Eval", mock.AnythingOfType("[]interface {}")).Return(freeCmd).Once()
-	mockClient.On("Eval", mock.AnythingOfType("[]interface {}")).Return(premiumCmd).Once()
+	mockClient.On("Eval", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("int64"), mock.AnythingOfType("int64"), mock.AnythingOfType("int64")).Return(freeCmd).Once()
+	mockClient.On("Eval", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("int64"), mock.AnythingOfType("int64"), mock.AnythingOfType("int64")).Return(premiumCmd).Once()
 
 	// Create multi-tier rate limiter with mock client
 	tiers := map[string]struct {

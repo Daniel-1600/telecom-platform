@@ -1,6 +1,6 @@
 use axum::{
     extract::{Path, State},
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use tower_http::cors::{Any, CorsLayer};
@@ -26,6 +26,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/v1/credit/:ip/add", post(add_credit))
         .route("/v1/credit/:ip/balance", get(get_balance))
         .route("/v1/subscriber/:imsi", get(get_subscriber))
+        .route("/v1/subscriber/:imsi", put(update_subscriber))
         .route("/v1/usage", post(record_usage))
         .route("/v1/rating-plans", get(list_rating_plans))
         .route("/v1/rating-plans/:id", get(get_rating_plan))
@@ -35,6 +36,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/v1/unblock/:ip", post(unblock_user))
         .route("/v1/blocked/:ip", get(is_user_blocked))
         .route("/v1/stats", get(get_system_stats))
+        .route("/v1/metrics", get(get_performance_metrics))
+        .route("/v1/engine/start", post(engine_start))
+        .route("/v1/engine/stop", post(engine_stop))
+        .route("/v1/engine/uptime", get(engine_uptime))
         .route("/health", get(health_check))
         .layer(cors)
         .with_state(state)
@@ -343,5 +348,87 @@ pub async fn get_system_stats(
         "blocked_users": stats.blocked_users,
         "low_balance_alerts": stats.low_balance_alerts,
         "uptime": stats.uptime,
+    })))
+}
+
+/// PUT /v1/subscriber/:imsi
+/// Update subscriber account
+pub async fn update_subscriber(
+    Path(imsi): Path<String>,
+    State(state): State<AppState>,
+    Json(req): Json<serde_json::Value>,
+) -> ChargingResult<Json<serde_json::Value>> {
+    let account = crate::charging::types::SubscriberAccount {
+        imsi: imsi.clone(),
+        balance: req.get("balance").and_then(|v| v.as_u64()).unwrap_or(0),
+        data_used: req.get("data_used").and_then(|v| v.as_u64()).unwrap_or(0),
+        data_limit: req.get("data_limit").and_then(|v| v.as_u64()).unwrap_or(1_000_000_000),
+        voice_used: req.get("voice_used").and_then(|v| v.as_u64()).unwrap_or(0),
+        voice_limit: req.get("voice_limit").and_then(|v| v.as_u64()).unwrap_or(1000),
+        sms_used: req.get("sms_used").and_then(|v| v.as_u64()).unwrap_or(0),
+        sms_limit: req.get("sms_limit").and_then(|v| v.as_u64()).unwrap_or(100),
+    };
+    
+    state.charging_engine.update_subscriber_account(&account).await
+        .with_context("Failed to update subscriber account")?;
+    
+    Ok(Json(serde_json::json!({
+        "status": "updated",
+        "imsi": imsi,
+    })))
+}
+
+/// GET /v1/metrics
+/// Get performance metrics
+pub async fn get_performance_metrics(
+    State(state): State<AppState>,
+) -> ChargingResult<Json<serde_json::Value>> {
+    let metrics = state.charging_engine.get_performance_metrics().await
+        .with_context("Failed to get performance metrics")?;
+    
+    Ok(Json(serde_json::json!({
+        "connected_clients": metrics.connected_clients,
+        "used_memory": metrics.used_memory,
+        "total_commands_processed": metrics.total_commands_processed,
+        "requests_per_second": metrics.requests_per_second,
+        "average_response_time": metrics.average_response_time,
+    })))
+}
+
+/// POST /v1/engine/start
+/// Start the engine
+pub async fn engine_start(
+    State(state): State<AppState>,
+) -> ChargingResult<Json<serde_json::Value>> {
+    state.charging_engine.start().await
+        .with_context("Failed to start engine")?;
+    
+    Ok(Json(serde_json::json!({
+        "status": "started",
+    })))
+}
+
+/// POST /v1/engine/stop
+/// Stop the engine
+pub async fn engine_stop(
+    State(state): State<AppState>,
+) -> ChargingResult<Json<serde_json::Value>> {
+    state.charging_engine.stop().await
+        .with_context("Failed to stop engine")?;
+    
+    Ok(Json(serde_json::json!({
+        "status": "stopped",
+    })))
+}
+
+/// GET /v1/engine/uptime
+/// Get engine uptime
+pub async fn engine_uptime(
+    State(state): State<AppState>,
+) -> ChargingResult<Json<serde_json::Value>> {
+    let uptime = state.charging_engine.uptime();
+    
+    Ok(Json(serde_json::json!({
+        "uptime_seconds": uptime.as_secs(),
     })))
 }

@@ -3,6 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -119,4 +122,18 @@ func (c *APIClient) delete(ctx context.Context, path string) error {
 	}
 
 	return nil
+}
+
+// HMAC-SHA256 implementation
+// In production, Go's crypto/hmac package provides proper HMAC implementation
+// This is a reference implementation for SDK compatibility
+func hmacSHA256(data string, secret string) string {
+	h := hmac.New(sha256.New, []byte(secret))
+	h.Write([]byte(data))
+	return base64URLEncode(h.Sum(nil))
+}
+
+// Base64 URL encoding
+func base64URLEncode(data []byte) string {
+	return base64.URLEncoding.EncodeToString(data)
 }

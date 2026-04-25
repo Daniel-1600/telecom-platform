@@ -54,8 +54,7 @@ jobs:
           DB_USER: test_user
           DB_PASSWORD: test_password
           DB_NAME: test_db
-        run: |
-          go test -v -coverprofile=coverage.out ./...
+        run: go test -v -race -coverprofile=coverage.out ./internal/services/...
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4

@@ -16,7 +16,6 @@ import (
 	"github.com/nutcas3/telecom-platform/apps/api-server/internal/config"
 	"github.com/nutcas3/telecom-platform/apps/api-server/internal/database"
 	"github.com/nutcas3/telecom-platform/apps/api-server/internal/graphql"
-	"github.com/nutcas3/telecom-platform/apps/api-server/internal/logging"
 	"github.com/nutcas3/telecom-platform/apps/api-server/internal/middleware"
 	"github.com/nutcas3/telecom-platform/apps/api-server/internal/monitoring"
 	"github.com/nutcas3/telecom-platform/apps/api-server/internal/websocket"
@@ -25,14 +24,9 @@ import (
 func main() {
 	cfg := config.LoadConfig()
 
-	// Initialize structured logging
-	if err := logging.InitWithDefaults(); err != nil {
-		log.Printf("Failed to initialize structured logging: %v", err)
-	}
-
 	db, err := database.NewDatabase(&cfg.Database)
 	if err != nil {
-		logging.Fatalf("Failed to initialize database: %v", err)
+		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer db.Close()
 

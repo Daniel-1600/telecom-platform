@@ -1,9 +1,9 @@
 package repository
 
 import (
-"context"
-"errors"
-"time"
+	"context"
+	"errors"
+	"time"
 )
 
 // ErrNotFound is returned when a profile lookup misses.
@@ -39,4 +39,5 @@ type ProfileRepository interface {
 	List(ctx context.Context, f ListFilter) ([]*Profile, int, error)
 	UpdateState(ctx context.Context, iccid, state string) (*Profile, error)
 	Delete(ctx context.Context, iccid string) error
+	Ping() error
 }

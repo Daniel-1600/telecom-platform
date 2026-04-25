@@ -144,6 +144,15 @@ func (s *PostgresProfileStore) Close() error {
 	return sqlDB.Close()
 }
 
+// Ping checks if the database connection is alive.
+func (s *PostgresProfileStore) Ping() error {
+	sqlDB, err := s.db.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Ping()
+}
+
 // toRow maps domain -> row. Passthrough of CreatedAt/UpdatedAt lets GORM hooks
 // populate them on first save.
 func toRow(p *Profile) *profileRow {

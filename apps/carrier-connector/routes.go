@@ -15,6 +15,8 @@ import (
 func setupRoutes(router *gin.Engine, client *es2.ES2Client, repo repository.ProfileRepository) {
 	api := router.Group("/api/v1")
 	api.GET("/health", healthHandler)
+	api.GET("/health/ready", readinessHandler(repo))
+	api.GET("/health/live", livenessHandler)
 
 	esim := api.Group("/esim")
 	{
@@ -38,4 +40,39 @@ func healthHandler(c *gin.Context) {
 		"service":   "carrier-connector",
 		"timestamp": time.Now().UTC(),
 	})
+}
+
+// livenessHandler returns a simple liveness check (always healthy if service is running).
+func livenessHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"status":    "alive",
+		"service":   "carrier-connector",
+		"timestamp": time.Now().UTC(),
+	})
+}
+
+// readinessHandler checks if the service is ready to accept requests (database connectivity).
+func readinessHandler(repo repository.ProfileRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Check database connectivity
+		if err := repo.Ping(); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"status":    "not ready",
+				"service":   "carrier-connector",
+				"timestamp": time.Now().UTC(),
+				"error":     "database connection failed",
+				"details":   err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"status":    "ready",
+			"service":   "carrier-connector",
+			"timestamp": time.Now().UTC(),
+			"checks": gin.H{
+				"database": "ok",
+			},
+		})
+	}
 }

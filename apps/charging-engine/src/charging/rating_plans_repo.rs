@@ -49,7 +49,7 @@ impl RatingPlansRepo {
         )
         .execute(&pool)
         .await
-        .map_err(|e| crate::errors::ChargingError::RedisOperation(e.to_string()))?;
+        .map_err(|e| crate::errors::ChargingError::DatabaseError(e.to_string()))?;
 
         Ok(Self { pool })
     }
@@ -112,7 +112,7 @@ impl RatingPlansRepo {
         .bind(plan_id)
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| crate::errors::ChargingError::RedisOperation(e.to_string()))?;
+        .map_err(|e| crate::errors::ChargingError::DatabaseError(e.to_string()))?;
 
         Ok(row.map(row_to_plan))
     }
@@ -129,7 +129,7 @@ impl RatingPlansRepo {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| crate::errors::ChargingError::RedisOperation(e.to_string()))?;
+        .map_err(|e| crate::errors::ChargingError::DatabaseError(e.to_string()))?;
 
         let mut out = HashMap::with_capacity(rows.len());
         for row in rows {
@@ -192,7 +192,7 @@ impl RatingPlansRepo {
         .bind(plan.sms_limit as i64)
         .execute(&self.pool)
         .await
-        .map_err(|e| crate::errors::ChargingError::RedisOperation(e.to_string()))?;
+        .map_err(|e| crate::errors::ChargingError::DatabaseError(e.to_string()))?;
         Ok(())
     }
 
@@ -204,7 +204,7 @@ impl RatingPlansRepo {
         .bind(plan_id)
         .execute(&self.pool)
         .await
-        .map_err(|e| crate::errors::ChargingError::RedisOperation(e.to_string()))?;
+        .map_err(|e| crate::errors::ChargingError::DatabaseError(e.to_string()))?;
         Ok(result.rows_affected() > 0)
     }
 }

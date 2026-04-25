@@ -61,7 +61,13 @@ pub fn validate_bytes(bytes: u64) -> ChargingResult<()> {
         return Err(ChargingError::InvalidInput("Bytes cannot be zero".to_string()));
     }
 
-    if bytes > 1_000_000_000_000 { // 1TB limit
+    // Configurable via MAX_BYTES_LIMIT, defaults to 1TB
+    let max_bytes: u64 = std::env::var("MAX_BYTES_LIMIT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1_000_000_000_000);
+
+    if bytes > max_bytes {
         return Err(ChargingError::InvalidInput("Bytes exceed maximum limit".to_string()));
     }
 
@@ -85,7 +91,13 @@ pub fn validate_amount(amount: f64) -> ChargingResult<()> {
         return Err(ChargingError::InvalidInput("Amount must be positive".to_string()));
     }
 
-    if amount > 10_000.0 {
+    // Configurable via MAX_AMOUNT_LIMIT, defaults to 10,000
+    let max_amount: f64 = std::env::var("MAX_AMOUNT_LIMIT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(10_000.0);
+
+    if amount > max_amount {
         return Err(ChargingError::InvalidInput("Amount exceeds maximum limit".to_string()));
     }
 

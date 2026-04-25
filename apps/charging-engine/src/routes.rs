@@ -3,9 +3,12 @@ use axum::{
     Router,
 };
 use tower_http::cors::{Any, CorsLayer};
+use tower_governor::{
+    governor::GovernorConfigBuilder,
+    GovernorLayer,
+};
 
 use crate::auth::auth_middleware;
-// use crate::rate_limit::create_rate_limiter;
 use crate::handlers::{
     add_credit, add_rating_plan, block_user, check_credit, deduct_credit, detailed_health_check,
     engine_start, engine_stop, engine_uptime, get_balance, get_error_stats, get_performance_metrics,
@@ -21,7 +24,20 @@ pub fn create_router(state: AppState) -> Router {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // let rate_limiter = create_rate_limiter();
+    let requests_per_second: u32 = std::env::var("RATE_LIMIT_RPS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(10);
+    let burst_size: u32 = std::env::var("RATE_LIMIT_BURST")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(20);
+
+    let governor_conf = GovernorConfigBuilder::default()
+        .per_second(requests_per_second as u64)
+        .burst_size(burst_size)
+        .finish()
+        .unwrap();
 
     Router::new()
         // Public routes (no auth required - for packet-gateway integration)
@@ -54,7 +70,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/v1/usage/process", post(process_usage))
         .route("/v1/invoice/:imsi/:period", get(generate_invoice))
         .layer(cors)
-        // .layer(rate_limiter)
+        .layer(GovernorLayer::new(governor_conf))
         .route_layer(axum::middleware::from_fn_with_state(state.auth_config.clone(), auth_middleware))
         .with_state(state)
 }

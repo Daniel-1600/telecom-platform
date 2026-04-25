@@ -219,13 +219,19 @@ impl EbpfManager {
     }
     
     pub async fn sync_from_redis(&self, redis_conn: &mut redis::aio::MultiplexedConnection) -> Result<()> {
-        RedisSyncer::sync_credits_from_redis(redis_conn, |ip, credit| {
+        if let Err(e) = RedisSyncer::sync_credits_from_redis(redis_conn, |ip, credit| {
             self.update_user_credit(ip, credit)
-        }).await?;
+        }).await {
+            error!("Failed to sync credits from Redis: {}", e);
+            return Err(anyhow::anyhow!(EbpfError::RedisFetchError(e.to_string())));
+        }
         
-        RedisSyncer::sync_blocked_from_redis(redis_conn, |ip| {
+        if let Err(e) = RedisSyncer::sync_blocked_from_redis(redis_conn, |ip| {
             self.block_user(ip, true)
-        }).await?;
+        }).await {
+            error!("Failed to sync blocked users from Redis: {}", e);
+            return Err(anyhow::anyhow!(EbpfError::RedisFetchError(e.to_string())));
+        }
         
         debug!("Synced data from Redis to eBPF maps");
         Ok(())
@@ -233,28 +239,62 @@ impl EbpfManager {
     
     pub fn trigger_sync(&self) -> Result<()> {
         let sync_control_map: &HashMap<_, u32, u64> = self.bpf.map("sync_control")
-            .ok_or_else(|| anyhow::anyhow!("sync_control map not found"))?
-            .try_into()?;
+            .ok_or_else(|| anyhow::anyhow!(EbpfError::MapNotFound {
+                map_name: "sync_control".to_string(),
+            }))?
+            .try_into()
+            .map_err(|e| anyhow::anyhow!(EbpfError::MapAccessError {
+                map_name: "sync_control".to_string(),
+                message: e.to_string(),
+            }))?;
         
         let key = 0u32;
         let sync_flag = 1u64;
-        sync_control_map.insert(&key, &sync_flag, 0)?;
+        match sync_control_map.insert(&key, &sync_flag, 0) {
+            Ok(_) => {
+                debug!("Triggered eBPF sync function");
+            }
+            Err(e) => {
+                error!("Failed to trigger eBPF sync: {}", e);
+                return Err(anyhow::anyhow!(EbpfError::MapAccessError {
+                    map_name: "sync_control".to_string(),
+                    message: e.to_string(),
+                }));
+            }
+        }
         
-        debug!("Triggered eBPF sync function");
         Ok(())
     }
     
     pub fn read_sync_buffer(&self) -> Result<Vec<SyncEntry>> {
         let sync_buffer_map: &HashMap<_, u32, SyncEntry> = self.bpf.map("sync_buffer")
-            .ok_or_else(|| anyhow::anyhow!("sync_buffer map not found"))?
-            .try_into()?;
+            .ok_or_else(|| anyhow::anyhow!(EbpfError::MapNotFound {
+                map_name: "sync_buffer".to_string(),
+            }))?
+            .try_into()
+            .map_err(|e| anyhow::anyhow!(EbpfError::MapAccessError {
+                map_name: "sync_buffer".to_string(),
+                message: e.to_string(),
+            }))?;
         
         let mut entries = Vec::new();
         
         let key = 0u32;
-        if let Some(entry) = sync_buffer_map.get(&key, 0)? {
-            if entry.valid == 1 {
-                entries.push(*entry);
+        match sync_buffer_map.get(&key, 0) {
+            Ok(Some(entry)) => {
+                if entry.valid == 1 {
+                    entries.push(*entry);
+                }
+            }
+            Ok(None) => {
+                debug!("No valid entry in sync buffer");
+            }
+            Err(e) => {
+                error!("Failed to read sync buffer: {}", e);
+                return Err(anyhow::anyhow!(EbpfError::MapAccessError {
+                    map_name: "sync_buffer".to_string(),
+                    message: e.to_string(),
+                }));
             }
         }
         
@@ -262,19 +302,29 @@ impl EbpfManager {
     }
     
     pub fn sync_batch_to_redis(&self, redis_conn: &mut redis::aio::MultiplexedConnection) -> Result<()> {
-        self.trigger_sync()?;
+        if let Err(e) = self.trigger_sync() {
+            error!("Failed to trigger sync for batch operation: {}", e);
+            return Err(e);
+        }
         std::thread::sleep(std::time::Duration::from_millis(10));
         
-        let entries = self.read_sync_buffer()?;
+        let entries = self.read_sync_buffer()
+            .map_err(|e| {
+                error!("Failed to read sync buffer: {}", e);
+                e
+            })?;
         
         for entry in entries {
-            RedisSyncer::sync_batch_entry(
+            if let Err(e) = RedisSyncer::sync_batch_entry(
                 entry.ip,
                 entry.bytes,
                 entry.credit,
                 entry.blocked,
                 redis_conn,
-            ).await?;
+            ).await {
+                error!("Failed to sync batch entry for IP {}: {}", entry.ip, e);
+                // Continue with other entries even if one fails
+            }
         }
         
         info!("Batch synced {} entries to Redis", entries.len());
@@ -284,9 +334,16 @@ impl EbpfManager {
     pub fn cleanup_maps(&self) -> Result<()> {
         if let Ok(packet_stats_map) = self.bpf.map("packet_stats").and_then(|m| m.try_into()) {
             let map: &HashMap<_, u32, u64> = packet_stats_map;
-            let keys: Vec<u32> = map.iter()?.map(|(k, _)| *k).collect();
-            for key in keys {
-                let _: Result<(), _> = map.delete(&key);
+            match map.iter() {
+                Ok(iter) => {
+                    let keys: Vec<u32> = iter.map(|(k, _)| *k).collect();
+                    for key in keys {
+                        let _: Result<(), _> = map.delete(&key);
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to iterate packet_stats map during cleanup: {}", e);
+                }
             }
         }
         

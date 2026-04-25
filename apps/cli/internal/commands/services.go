@@ -152,10 +152,10 @@ func showServiceLogs(u *uiContext, args []string) error {
 	// Logs endpoint not yet implemented; show placeholder logs
 	u.muted("(Showing placeholder log entries - logs API not yet connected)")
 	logs := []string{
-		"2024-01-15 16:45:30 [INFO] Service started successfully",
-		"2024-01-15 16:45:35 [INFO] Database connection established",
-		"2024-01-15 16:45:40 [INFO] API server listening on port 8000",
-		"2024-01-15 16:45:45 [INFO] Health check passed",
+		"2026-05-30 16:45:30 [INFO] Service started successfully",
+		"2026-05-30 16:45:35 [INFO] Database connection established",
+		"2026-05-30 16:45:40 [INFO] API server listening on port 8000",
+		"2026-05-30 16:45:45 [INFO] Health check passed",
 	}
 	for _, line := range logs {
 		fmt.Println(u.colorizer.Colorize(line, statusStyle("OK")))

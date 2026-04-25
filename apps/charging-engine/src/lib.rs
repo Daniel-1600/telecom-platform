@@ -1,3 +1,4 @@
+pub mod auth;
 pub mod charging;
 pub mod errors;
 pub mod handlers;

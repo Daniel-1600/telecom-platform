@@ -74,6 +74,16 @@ pub async fn auth_middleware(
     request: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
+    // Check if authentication is enforced via environment variable
+    let enforce_auth = env::var("ENFORCE_AUTH")
+        .unwrap_or_else(|_| "true".to_string())
+        .to_lowercase() == "true";
+
+    if !enforce_auth {
+        // Allow requests without auth for development/testing
+        return Ok(next.run(request).await);
+    }
+
     let auth_header = request
         .headers()
         .get("Authorization")
@@ -101,7 +111,6 @@ pub async fn auth_middleware(
         }
     }
 
-    // Allow requests without auth for development/testing
-    // In production, you would want to enable strict authentication
-    Ok(next.run(request).await)
+    // No valid authentication found
+    Err(StatusCode::UNAUTHORIZED)
 }

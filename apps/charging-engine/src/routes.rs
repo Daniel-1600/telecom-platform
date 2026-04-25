@@ -5,6 +5,7 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::auth::auth_middleware;
+use crate::rate_limit::create_rate_limiter;
 use crate::handlers::{
     add_credit, add_rating_plan, block_user, check_credit, deduct_credit, detailed_health_check,
     engine_start, engine_stop, engine_uptime, get_balance, get_error_stats, get_performance_metrics,
@@ -19,6 +20,8 @@ pub fn create_router(state: AppState) -> Router {
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
+
+    let rate_limiter = create_rate_limiter();
 
     Router::new()
         // Public routes (no auth required - for packet-gateway integration)
@@ -51,6 +54,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/v1/usage/process", post(process_usage))
         .route("/v1/invoice/:imsi/:period", get(generate_invoice))
         .layer(cors)
+        .layer(rate_limiter)
         .route_layer(axum::middleware::from_fn_with_state(state.auth_config.clone(), auth_middleware))
         .with_state(state)
 }

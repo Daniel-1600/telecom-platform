@@ -12,8 +12,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 mod ebpf;
 mod health;
+mod charging_client;
 use ebpf::EbpfManager;
 use health::{health_handler, liveness_handler, readiness_handler, metrics_handler};
+use charging_client::ChargingEngineClient;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -25,6 +27,10 @@ struct Args {
     /// Redis connection URL
     #[arg(short, long, default_value = "redis://127.0.0.1/")]
     redis_url: String,
+
+    /// Charging Engine URL for usage reporting
+    #[arg(long, default_value = "http://localhost:3001")]
+    charging_engine_url: String,
 
     /// Stats sync interval in seconds
     #[arg(short, long, default_value = "1")]
@@ -49,6 +55,7 @@ async fn main() -> Result<()> {
     info!("Starting Packet Gateway");
     info!("Interface: {}", args.interface);
     info!("Redis URL: {}", args.redis_url);
+    info!("Charging Engine URL: {}", args.charging_engine_url);
     info!("Health Port: {}", args.health_port);
 
     // Connect to Redis
@@ -58,6 +65,10 @@ async fn main() -> Result<()> {
     // Test connection
     let _: () = redis::cmd("PING").query_async(&mut redis_conn).await?;
     info!("Connected to Redis successfully");
+    
+    // Initialize charging engine client
+    let charging_client = ChargingEngineClient::new(args.charging_engine_url.clone());
+    info!("Charging engine client initialized");
     
     // Initialize eBPF manager
     let mut ebpf_manager = EbpfManager::new(args.interface.clone()).await
@@ -78,6 +89,7 @@ async fn main() -> Result<()> {
 
     // Set up periodic synchronization loop
     let mut ticker = interval(Duration::from_secs(args.sync_interval));
+    let charging_client_arc = Arc::new(charging_client);
     
     info!("Packet gateway running. Press Ctrl+C to exit.");
     
@@ -108,6 +120,9 @@ async fn main() -> Result<()> {
     
     // Main synchronization loop with graceful shutdown
     let mut counter = 0u64;
+    let mut last_usage_report = 0u64;
+    let usage_report_interval = 60; // Report usage every 60 seconds
+    
     loop {
         tokio::select! {
             _ = ticker.tick() => {
@@ -123,6 +138,36 @@ async fn main() -> Result<()> {
                 }
                 
                 counter += 1;
+                
+                // Report usage to charging-engine periodically
+                let elapsed = counter * args.sync_interval;
+                if elapsed - last_usage_report >= usage_report_interval {
+                    if let Ok(stats) = ebpf_manager.get_packet_stats() {
+                        let usage_data: Vec<(String, String, u64)> = stats.iter()
+                            .filter(|s| s.bytes > 0)
+                            .map(|s| {
+                                let ip_str = format!("{}.{}.{}.{}", 
+                                    (s.ip >> 24) & 0xFF,
+                                    (s.ip >> 16) & 0xFF,
+                                    (s.ip >> 8) & 0xFF,
+                                    s.ip & 0xFF
+                                );
+                                let session_id = format!("session-{}", ip_str);
+                                (ip_str.clone(), session_id, s.bytes)
+                            })
+                            .collect();
+                        
+                        if !usage_data.is_empty() {
+                            let charging_client = Arc::clone(&charging_client_arc);
+                            tokio::spawn(async move {
+                                if let Err(e) = charging_client.report_batch_usage(usage_data).await {
+                                    warn!("Failed to report batch usage to charging engine: {}", e);
+                                }
+                            });
+                            last_usage_report = elapsed;
+                        }
+                    }
+                }
                 
                 // Log current stats (every 10 iterations to avoid spam)
                 if counter % 10 == 0 {

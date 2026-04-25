@@ -1,7 +1,7 @@
 use tracing::{info, warn, debug};
 
 use super::types::{SubscriberAccount, UsageEvent};
-use crate::circuit_breaker::{CircuitBreaker, CircuitBreakerError};
+use crate::circuit_breaker::CircuitBreakerError;
 use crate::errors::{ChargingError, ChargingResult};
 
 impl crate::charging::ChargingEngine {

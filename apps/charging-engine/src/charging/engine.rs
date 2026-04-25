@@ -4,8 +4,10 @@ use tracing::info;
 
 use super::rating_plans_repo::RatingPlansRepo;
 use super::types::RatingPlan;
-// use crate::circuit_breaker::CircuitBreaker;
-use crate::errors::ChargingResult;
+use crate::circuit_breaker::{CircuitBreaker, CircuitBreakerError};
+use crate::errors::{ChargingError, ChargingResult};
+use crate::charging::credit_management::CreditManager;
+use crate::charging::rating_plans_repo::RatingPlansRepo;
 
 /// ChargingEngine coordinates Redis-backed hot-path state (balances, sessions)
 /// and Postgres-backed configuration (rating plans) via `RatingPlansRepo`.
@@ -14,8 +16,8 @@ pub struct ChargingEngine {
     pub(crate) plans: RatingPlansRepo,
     pub(crate) sync_interval: Duration,
     pub(crate) startup_time: SystemTime,
-    // pub(crate) redis_circuit_breaker: CircuitBreaker,
-    // pub(crate) postgres_circuit_breaker: CircuitBreaker,
+    pub(crate) redis_circuit_breaker: CircuitBreaker,
+    pub(crate) postgres_circuit_breaker: CircuitBreaker,
 }
 
 impl ChargingEngine {
@@ -29,35 +31,44 @@ impl ChargingEngine {
     ) -> ChargingResult<Self> {
         let redis_client = redis::Client::open(redis_url)
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
+        let sync_interval = Duration::from_secs(sync_interval_secs);
 
-        // Initialize circuit breakers with configurable thresholds
-        /*
-        let redis_cb_threshold: u32 = std::env::var("REDIS_CB_THRESHOLD")
+        // Initialize circuit breakers with environment variable configuration
+        let redis_failure_threshold: u32 = std::env::var("REDIS_FAILURE_THRESHOLD")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(5);
-        let redis_cb_timeout: u64 = std::env::var("REDIS_CB_TIMEOUT")
+        let redis_timeout: u64 = std::env::var("REDIS_TIMEOUT")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(60);
         
-        let postgres_cb_threshold: u32 = std::env::var("POSTGRES_CB_THRESHOLD")
+        let postgres_failure_threshold: u32 = std::env::var("POSTGRES_FAILURE_THRESHOLD")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(5);
-        let postgres_cb_timeout: u64 = std::env::var("POSTGRES_CB_TIMEOUT")
+        let postgres_timeout: u64 = std::env::var("POSTGRES_TIMEOUT")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(60);
-        */
+
+        let redis_circuit_breaker = CircuitBreaker::new(
+            redis_failure_threshold,
+            Duration::from_secs(redis_timeout),
+        );
+        
+        let postgres_circuit_breaker = CircuitBreaker::new(
+            postgres_failure_threshold,
+            Duration::from_secs(postgres_timeout),
+        );
 
         Ok(Self {
             redis_client,
             plans,
-            sync_interval: Duration::from_secs(sync_interval_secs),
+            sync_interval,
             startup_time: SystemTime::now(),
-            // redis_circuit_breaker: CircuitBreaker::new(redis_cb_threshold, Duration::from_secs(redis_cb_timeout)),
-            // postgres_circuit_breaker: CircuitBreaker::new(postgres_cb_threshold, Duration::from_secs(postgres_cb_timeout)),
+            redis_circuit_breaker,
+            postgres_circuit_breaker,
         })
     }
 

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/es2"
 	handler "github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/handler"
@@ -17,6 +18,7 @@ func setupRoutes(router *gin.Engine, client *es2.ES2Client, repo repository.Prof
 	api.GET("/health", healthHandler)
 	api.GET("/health/ready", readinessHandler(repo))
 	api.GET("/health/live", livenessHandler)
+	api.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	esim := api.Group("/esim")
 	{

@@ -5,6 +5,7 @@ go 1.26
 require (
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/joho/godotenv v1.5.1
+	github.com/prometheus/client_golang v1.20.5
 	github.com/rs/zerolog v1.35.0
 )
 

@@ -2,6 +2,31 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use redis::{FromRedisValue, ToRedisArgs, ToSingleRedisArg};
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ChargingRule {
+    Allowed,
+    InsufficientCredit,
+    DataLimitExceeded,
+    VoiceLimitExceeded,
+    SmsLimitExceeded,
+    UserBlocked,
+    Blocked,
+}
+
+impl ChargingRule {
+    pub fn as_str(&self) -> &str {
+        match self {
+            ChargingRule::Allowed => "ALLOWED",
+            ChargingRule::InsufficientCredit => "INSUFFICIENT_CREDIT",
+            ChargingRule::DataLimitExceeded => "DATA_LIMIT_EXCEEDED",
+            ChargingRule::VoiceLimitExceeded => "VOICE_LIMIT_EXCEEDED",
+            ChargingRule::SmsLimitExceeded => "SMS_LIMIT_EXCEEDED",
+            ChargingRule::UserBlocked => "USER_BLOCKED",
+            ChargingRule::Blocked => "BLOCKED",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubscriberAccount {
     pub imsi: String,

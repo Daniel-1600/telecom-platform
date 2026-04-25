@@ -64,8 +64,8 @@ func TestRedisRateLimiter_Allow(t *testing.T) {
 
 			cmd := redis.NewCmd(context.Background())
 			cmd.SetVal(mockResult)
-			// Match the actual call signature: script, key, now, window, limit
-			mockClient.On("Eval", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("int64"), mock.AnythingOfType("int64"), mock.AnythingOfType("int64")).Return(cmd)
+			// Match the actual call signature: script, key, now (int64), window (float64), limit (int64)
+			mockClient.On("Eval", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("int64"), mock.AnythingOfType("float64"), mock.AnythingOfType("int64")).Return(cmd)
 
 			// Create rate limiter with mock client
 			limiter := NewRedisRateLimiter(mockClient, "test", tt.limit, tt.window)
@@ -116,7 +116,7 @@ func TestRedisRateLimitMiddleware(t *testing.T) {
 			// Mock successful rate limit check
 			cmd := redis.NewCmd(context.Background())
 			cmd.SetVal([]any{int64(1), int64(4), int64(time.Now().Unix() + 60)})
-			mockClient.On("Eval", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("int64"), mock.AnythingOfType("int64"), mock.AnythingOfType("int64")).Return(cmd)
+			mockClient.On("Eval", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("int64"), mock.AnythingOfType("float64"), mock.AnythingOfType("int64")).Return(cmd)
 
 			// Create rate limiter with mock client
 			limiter := NewRedisRateLimiter(mockClient, "test", 5, time.Minute)
@@ -272,8 +272,8 @@ func TestMultiTierRateLimiter(t *testing.T) {
 	premiumCmd := redis.NewCmd(context.Background())
 	premiumCmd.SetVal([]any{int64(1), int64(99), int64(time.Now().Unix() + 60)})
 
-	mockClient.On("Eval", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("int64"), mock.AnythingOfType("int64"), mock.AnythingOfType("int64")).Return(freeCmd).Once()
-	mockClient.On("Eval", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("int64"), mock.AnythingOfType("int64"), mock.AnythingOfType("int64")).Return(premiumCmd).Once()
+	mockClient.On("Eval", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("int64"), mock.AnythingOfType("float64"), mock.AnythingOfType("int64")).Return(freeCmd).Once()
+	mockClient.On("Eval", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("int64"), mock.AnythingOfType("float64"), mock.AnythingOfType("int64")).Return(premiumCmd).Once()
 
 	// Create multi-tier rate limiter with mock client
 	tiers := map[string]struct {

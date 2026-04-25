@@ -30,6 +30,26 @@ type Experiment struct {
 	Error    string
 }
 
+// copy creates a deep copy of the experiment to avoid race conditions
+func (e *Experiment) copy() *Experiment {
+	var finished *time.Time
+	if e.Finished != nil {
+		fin := *e.Finished
+		finished = &fin
+	}
+	return &Experiment{
+		ID:       e.ID,
+		Name:     e.Name,
+		Target:   e.Target,
+		Type:     e.Type,
+		Config:   e.Config,
+		Status:   e.Status,
+		Started:  e.Started,
+		Finished: finished,
+		Error:    e.Error,
+	}
+}
+
 type ExperimentType string
 
 const (
@@ -90,7 +110,8 @@ func (cs *ChaosService) RunExperiment(ctx context.Context, expType ExperimentTyp
 	// Run experiment in background
 	go cs.executeExperiment(ctx, exp)
 
-	return exp, nil
+	// Return a copy to avoid race condition with JSON marshaling
+	return exp.copy(), nil
 }
 
 func (cs *ChaosService) executeExperiment(ctx context.Context, exp *Experiment) {

@@ -65,7 +65,7 @@ jobs:
 
       - name: Build API server
         working-directory: apps/api-server
-        run: go build -o bin/api-server ./cmd/server.go
+        run: go build -o bin/api-server ./cmd/
 
   web-dashboard-test:
     name: Web Dashboard Tests

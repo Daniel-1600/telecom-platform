@@ -27,6 +27,10 @@ func HandleServices(args []string, config *types.CLIConfig) error {
 		return restartService(u, args[1:])
 	case "logs":
 		return showServiceLogs(u, args[1:])
+	case "start-all":
+		return startAllServices(u)
+	case "stop-all":
+		return stopAllServices(u)
 	default:
 		u.errorln("Unknown services command: " + command)
 		showServicesHelp(u)
@@ -46,6 +50,8 @@ func showServicesHelp(u *uiContext) {
 	t.AddRow("status <service>", "Show service status")
 	t.AddRow("restart <service>", "Restart a service")
 	t.AddRow("logs <service>", "Show service logs")
+	t.AddRow("start-all", "Start all platform services")
+	t.AddRow("stop-all", "Stop all platform services")
 	fmt.Println(t.Render())
 }
 
@@ -160,5 +166,49 @@ func showServiceLogs(u *uiContext, args []string) error {
 	for _, line := range logs {
 		fmt.Println(u.colorizer.Colorize(line, statusStyle("OK")))
 	}
+	return nil
+}
+
+func startAllServices(u *uiContext) error {
+	u.header("Starting All Platform Services")
+	u.muted("(Service orchestration API not yet connected - showing simulation)")
+
+	services := []string{"api-server", "charging-engine", "carrier-connector", "packet-gateway", "web-dashboard"}
+
+	t := u.newTable()
+	t.AddColumn("Service", 18, "left")
+	t.AddColumn("Status", 12, "left")
+	t.AddColumn("Message", 40, "left")
+
+	for _, svc := range services {
+		u.info("Starting " + svc + "...")
+		t.AddStyledRow(statusStyle("OK").Style, svc, "Starting", "Initiating service startup")
+	}
+
+	fmt.Println(t.Render())
+	u.success("All services start sequence initiated!")
+	u.muted("Note: This is a simulation. Implement actual service orchestration via Kubernetes API or process manager.")
+	return nil
+}
+
+func stopAllServices(u *uiContext) error {
+	u.header("Stopping All Platform Services")
+	u.muted("(Service orchestration API not yet connected - showing simulation)")
+
+	services := []string{"web-dashboard", "packet-gateway", "carrier-connector", "charging-engine", "api-server"}
+
+	t := u.newTable()
+	t.AddColumn("Service", 18, "left")
+	t.AddColumn("Status", 12, "left")
+	t.AddColumn("Message", 40, "left")
+
+	for _, svc := range services {
+		u.info("Stopping " + svc + "...")
+		t.AddStyledRow(statusStyle("OK").Style, svc, "Stopping", "Initiating graceful shutdown")
+	}
+
+	fmt.Println(t.Render())
+	u.success("All services stop sequence initiated!")
+	u.muted("Note: This is a simulation. Implement actual service orchestration via Kubernetes API or process manager.")
 	return nil
 }

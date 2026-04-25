@@ -126,6 +126,9 @@ pub fn log_error(error: &ChargingError) {
         ChargingError::RedisOperation(msg) => {
             tracing::error!("Redis operation error: {}", msg);
         }
+        ChargingError::DatabaseError(msg) => {
+            tracing::error!("Database error: {}", msg);
+        }
         ChargingError::SubscriberNotFound(imsi) => {
             tracing::warn!("Subscriber not found: {}", imsi);
         }

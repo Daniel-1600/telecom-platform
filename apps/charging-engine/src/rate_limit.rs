@@ -6,14 +6,16 @@ use governor::{
     clock::DefaultClock,
     state::InMemoryState,
     Jitter, Quota, RateLimiter,
+    middleware::StateInformationMiddleware,
 };
 use std::num::NonZeroU32;
+use std::sync::Arc;
 use tower_governor::{
     governor::config::GovernorConfigBuilder,
     key_extractor::SmartIpKeyExtractor,
 };
 
-pub fn create_rate_limiter() -> tower_governor::GovernorLayer<SmartIpKeyExtractor, governor::state::InMemoryState, governor::clock::DefaultClock> {
+pub fn create_rate_limiter() -> tower_governor::GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware<governor::clock::QuantaClock>> {
     let requests_per_second: u32 = std::env::var("RATE_LIMIT_RPS")
         .ok()
         .and_then(|s| s.parse().ok())
@@ -34,7 +36,6 @@ pub fn create_rate_limiter() -> tower_governor::GovernorLayer<SmartIpKeyExtracto
 
     tower_governor::GovernorLayer {
         config: Arc::new(config),
-        key_extractor: SmartIpKeyExtractor,
     }
 }
 

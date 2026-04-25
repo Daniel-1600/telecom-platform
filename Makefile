@@ -61,17 +61,16 @@ lint-rust: ## Run Rust linter (clippy)
 	@cargo clippy --workspace -- -D warnings
 
 # Go - BSS API & Carrier Connector
-build-go: ## Build Go services
-	@echo "$(CYAN)Building Go projects...$(RESET)"
-	@mkdir -p dist
-	@cd apps/api-server && go build -o ../../dist/api-server
-	@cd apps/carrier-connector && go build -o ../../dist/carrier-connector
+build-go: ## Build Go applications
+	@echo "$(GREEN)Building Go applications...$(RESET)"
+	@cd apps/api-server && go build -o ../../dist/api-server ./cmd/
+	@cd apps/carrier-connector && go build -o ../../dist/carrier-connector .
 	@echo "$(GREEN)Go build complete!$(RESET)"
 
 build-cli: ## Build CLI tool
 	@echo "$(CYAN)Building CLI...$(RESET)"
 	@mkdir -p dist
-	@cd apps/cli && go build -o ../../dist/taas-cli
+	@cd apps/cli && go build -o ../../dist/taas-cli .
 	@echo "$(GREEN)CLI build complete!$(RESET)"
 
 test-go: ## Run Go tests

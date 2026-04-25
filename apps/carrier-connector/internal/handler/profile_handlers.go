@@ -10,12 +10,13 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/es2"
+	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/mq"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/repository"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/webhook"
 )
 
 // OrderProfileHandlerWithRepo orders a profile via ES2+ and persists it in the repo.
-func OrderProfileHandlerWithRepo(client *es2.ES2Client, repo repository.ProfileRepository, webhookClient *webhook.WebhookClient) gin.HandlerFunc {
+func OrderProfileHandlerWithRepo(client *es2.ES2Client, repo repository.ProfileRepository, webhookClient *webhook.WebhookClient, messageQueue *mq.MessageQueue) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var order ProfileOrder
 		if err := c.ShouldBindJSON(&order); err != nil {
@@ -72,6 +73,15 @@ func OrderProfileHandlerWithRepo(client *es2.ES2Client, repo repository.ProfileR
 		// Send webhook notification for successful download
 		if webhookClient != nil {
 			go webhookClient.SendProfileDownloaded(context.Background(), order.ICCID, map[string]any{
+				"imsi":        order.IMSI,
+				"profileType": order.ProfileType,
+				"status":      downloadResp.ExecutionStatus,
+			})
+		}
+
+		// Publish message queue event for profile download
+		if messageQueue != nil {
+			go messageQueue.PublishProfileEvent("profile.downloaded", order.ICCID, map[string]any{
 				"imsi":        order.IMSI,
 				"profileType": order.ProfileType,
 				"status":      downloadResp.ExecutionStatus,
@@ -170,7 +180,7 @@ func ListProfilesHandlerWithRepo(repo repository.ProfileRepository) gin.HandlerF
 }
 
 // DeleteProfileHandlerWithRepo deletes a profile from the SM-DP+ and marks it deleted in the repo.
-func DeleteProfileHandlerWithRepo(client *es2.ES2Client, repo repository.ProfileRepository, webhookClient *webhook.WebhookClient) gin.HandlerFunc {
+func DeleteProfileHandlerWithRepo(client *es2.ES2Client, repo repository.ProfileRepository, webhookClient *webhook.WebhookClient, messageQueue *mq.MessageQueue) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		profileID := c.Param("profileId")
 		if profileID == "" {
@@ -192,6 +202,14 @@ func DeleteProfileHandlerWithRepo(client *es2.ES2Client, repo repository.Profile
 		// Send webhook notification for profile deletion
 		if webhookClient != nil {
 			go webhookClient.SendProfileDeleted(context.Background(), profileID, map[string]any{
+				"executionStatus": deleteResp.ExecutionStatus,
+				"statusMessage":   deleteResp.StatusMessage,
+			})
+		}
+
+		// Publish message queue event for profile deletion
+		if messageQueue != nil {
+			go messageQueue.PublishProfileEvent("profile.deleted", profileID, map[string]any{
 				"executionStatus": deleteResp.ExecutionStatus,
 				"statusMessage":   deleteResp.StatusMessage,
 			})

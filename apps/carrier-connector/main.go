@@ -10,6 +10,7 @@ import (
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/config"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/es2"
 	handler "github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/handler"
+	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/mq"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/repository"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/webhook"
 	"github.com/rs/zerolog"
@@ -62,7 +63,27 @@ func main() {
 	webhookAPIKey := handler.GetEnv("API_SERVER_WEBHOOK_API_KEY", "")
 	webhookClient := webhook.NewWebhookClient(webhookURL, webhookAPIKey)
 
-	setupRoutes(router, client, profileRepo, webhookClient)
+	// Initialize message queue for async events (optional)
+	var messageQueue *mq.MessageQueue
+	rabbitmqURL := handler.GetEnv("RABBITMQ_URL", "")
+	if rabbitmqURL != "" {
+		mq, err := mq.NewMessageQueue(rabbitmqURL)
+		if err != nil {
+			handler.Logger.Warn().Err(err).Msg("Failed to connect to RabbitMQ, continuing without message queue")
+		} else {
+			// Declare profile events queue
+			if err := mq.DeclareQueue("profile-events"); err != nil {
+				handler.Logger.Warn().Err(err).Msg("Failed to declare profile-events queue")
+				mq.Close()
+			} else {
+				messageQueue = mq
+				handler.Logger.Info().Msg("Message queue initialized")
+				defer messageQueue.Close()
+			}
+		}
+	}
+
+	setupRoutes(router, client, profileRepo, webhookClient, messageQueue)
 
 	handler.Logger.Info().Str("port", port).Msg("Carrier Connector API server starting")
 	if err := router.Run(":" + port); err != nil {

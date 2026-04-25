@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -15,6 +17,7 @@ import (
 
 	"github.com/nutcas3/telecom-platform/apps/api-server/internal/config"
 	"github.com/nutcas3/telecom-platform/apps/api-server/internal/database"
+	"github.com/nutcas3/telecom-platform/apps/api-server/internal/discovery"
 	"github.com/nutcas3/telecom-platform/apps/api-server/internal/graphql"
 	"github.com/nutcas3/telecom-platform/apps/api-server/internal/middleware"
 	"github.com/nutcas3/telecom-platform/apps/api-server/internal/monitoring"
@@ -29,6 +32,38 @@ func main() {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer db.Close()
+
+	// Initialize service discovery (Consul)
+	var serviceDiscovery *discovery.ServiceDiscovery
+	consulAddr := os.Getenv("CONSUL_ADDR")
+	if consulAddr != "" {
+		sd, err := discovery.NewServiceDiscovery()
+		if err != nil {
+			log.Printf("Failed to initialize service discovery: %v", err)
+		} else {
+			serviceDiscovery = sd
+			// Register this service with Consul
+			port, err := strconv.Atoi(cfg.Server.Port)
+			if err != nil {
+				log.Printf("Failed to parse port: %v", err)
+				port = 8080 // fallback
+			}
+			serviceID := fmt.Sprintf("api-server-%s", cfg.Server.Port)
+			err = serviceDiscovery.Register(discovery.Service{
+				ID:      serviceID,
+				Name:    "api-server",
+				Address: "0.0.0.0",
+				Port:    port,
+				Tags:    []string{"api", "telecom"},
+			}, 10*time.Second)
+			if err != nil {
+				log.Printf("Failed to register service with Consul: %v", err)
+			} else {
+				log.Printf("Service registered with Consul: %s", serviceID)
+				defer serviceDiscovery.Deregister(serviceID)
+			}
+		}
+	}
 
 	prometheusCollector, metricsCollector, timeSeriesStorage := buildMetricsCollector(cfg)
 	defer func() {

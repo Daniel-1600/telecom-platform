@@ -20,7 +20,8 @@ pub struct RatingPlansRepo {
 }
 
 impl RatingPlansRepo {
-    /// Connect to Postgres using the given DSN and ensure the schema exists.
+    /// Connect to Postgres using the given DSN.
+    /// Note: Database schema should be created by running migrations via `make db-migrate`
     pub async fn connect(database_url: &str) -> ChargingResult<Self> {
         let pool = PgPoolOptions::new()
             .max_connections(10)
@@ -30,30 +31,9 @@ impl RatingPlansRepo {
 
         let circuit_breaker = CircuitBreaker::new(5, std::time::Duration::from_secs(60));
 
-        // Idempotent schema for rating plans. api-server's GORM migration also
-        // creates a compatible `rating_plans` table; the column set here is
-        // intentionally a strict subset that both services agree on.
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS rating_plans (
-                plan_id      TEXT PRIMARY KEY,
-                name         TEXT NOT NULL,
-                data_rate    DOUBLE PRECISION NOT NULL,
-                voice_rate   DOUBLE PRECISION NOT NULL,
-                sms_rate     DOUBLE PRECISION NOT NULL,
-                monthly_fee  DOUBLE PRECISION NOT NULL,
-                data_limit   BIGINT NOT NULL,
-                voice_limit  BIGINT NOT NULL,
-                sms_limit    BIGINT NOT NULL,
-                is_active    BOOLEAN NOT NULL DEFAULT TRUE,
-                created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
-            "#,
-        )
-        .execute(&pool)
-        .await
-        .map_err(|e| crate::errors::ChargingError::DatabaseError(e.to_string()))?;
+        // Note: Inline schema creation removed - schema managed by centralized migration system
+        // Run `make db-migrate` to create/update database schema
+        // The rating_plans table is created by migration 000001_init_rating_plans.up.sql
 
         Ok(Self { pool, circuit_breaker })
     }

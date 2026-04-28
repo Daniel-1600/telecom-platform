@@ -34,8 +34,8 @@ type PostgresProfileStore struct {
 	db *gorm.DB
 }
 
-// NewPostgresProfileStore connects to Postgres using the given DSN, runs the
-// profile schema migration, and returns a repository ready to use.
+// NewPostgresProfileStore connects to Postgres using the given DSN and returns a repository ready to use.
+// Note: Database schema should be created by running migrations via `make db-migrate`
 func NewPostgresProfileStore(dsn string) (*PostgresProfileStore, error) {
 	if dsn == "" {
 		return nil, errors.New("postgres DSN is empty")
@@ -46,9 +46,8 @@ func NewPostgresProfileStore(dsn string) (*PostgresProfileStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open postgres: %w", err)
 	}
-	if err := db.AutoMigrate(&profileRow{}); err != nil {
-		return nil, fmt.Errorf("migrate esim_profiles: %w", err)
-	}
+	// Note: AutoMigrate removed - schema managed by migration system
+	// Run `make db-migrate` to create/update database schema
 	return &PostgresProfileStore{db: db}, nil
 }
 

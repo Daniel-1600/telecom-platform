@@ -62,7 +62,7 @@ impl super::ChargingEngine {
     }
 
     pub async fn apply_charging_rules(&self, event: &UsageEvent) -> ChargingResult<Vec<ChargingRule>> {
-        let mut applied_rules = Vec::new();
+        let mut applied_rules = Vec::with_capacity(6); // Max ~6 rules can be applied
 
         // Rule 1: Check if user has sufficient credit
         if !self.check_credit(&event.imsi, event.volume).await? {
@@ -159,7 +159,7 @@ impl super::ChargingEngine {
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
 
         let pattern = format!("usage:{}:*", imsi);
-        let mut keys: Vec<String> = Vec::new();
+        let mut keys: Vec<String> = Vec::with_capacity(100); // SCAN batch size
         
         // Use SCAN instead of KEYS to avoid blocking Redis
         let mut cursor = 0u64;
@@ -216,7 +216,7 @@ impl super::ChargingEngine {
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
 
         let pattern = "account:*".to_string();
-        let mut keys: Vec<String> = Vec::new();
+        let mut keys: Vec<String> = Vec::with_capacity(100); // SCAN batch size
         
         // Use SCAN instead of KEYS to avoid blocking Redis
         let mut cursor = 0u64;

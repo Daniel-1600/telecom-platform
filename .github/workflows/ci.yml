@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:15
+        image: postgres:18
         env:
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_password
@@ -40,11 +40,17 @@ jobs:
         working-directory: apps/api-server
         run: go mod download
 
+      - name: Install goose
+        run: go install github.com/pressly/goose/v3/cmd/goose@latest
+
+      - name: Add goose to PATH
+        run: echo "$HOME/go/bin" >> $GITHUB_PATH
+
       - name: Run database migrations
-        working-directory: apps/api-server
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db?sslmode=disable
-        run: go run cmd/migrate/main.go --action=up
+        working-directory: .
+        run: goose postgres $DATABASE_URL up migrations
 
       - name: Run linter
         working-directory: apps/api-server
@@ -108,6 +114,20 @@ jobs:
   charging-engine-test:
     name: Charging Engine Tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -132,6 +152,18 @@ jobs:
         working-directory: apps/charging-engine
         run: cargo fetch
 
+      - name: Install goose
+        run: go install github.com/pressly/goose/v3/cmd/goose@latest
+
+      - name: Add goose to PATH
+        run: echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Run database migrations
+        working-directory: .
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db?sslmode=disable
+        run: goose postgres $DATABASE_URL up migrations
+
       - name: Run tests
         working-directory: apps/charging-engine
         run: cargo test --release || true
@@ -143,6 +175,20 @@ jobs:
   packet-gateway-test:
     name: Packet Gateway Tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -166,6 +212,18 @@ jobs:
       - name: Install dependencies
         working-directory: apps/packet-gateway
         run: cargo fetch
+
+      - name: Install goose
+        run: go install github.com/pressly/goose/v3/cmd/goose@latest
+
+      - name: Add goose to PATH
+        run: echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Run database migrations
+        working-directory: .
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db?sslmode=disable
+        run: goose postgres $DATABASE_URL up migrations
 
       - name: Run tests
         working-directory: apps/packet-gateway

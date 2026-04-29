@@ -4,6 +4,7 @@
 //! services read a single source of truth.
 
 use std::collections::HashMap;
+use std::process::Command;
 
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use sqlx::Row;
@@ -20,7 +21,9 @@ pub struct RatingPlansRepo {
 }
 
 impl RatingPlansRepo {
-    /// Connect to Postgres using the given DSN and ensure the schema exists.
+    /// Connect to Postgres using the given DSN and run migrations.
+    /// Note: Database schema is managed by centralized migration system using Goose.
+    /// Migrations are automatically run on startup.
     pub async fn connect(database_url: &str) -> ChargingResult<Self> {
         let pool = PgPoolOptions::new()
             .max_connections(10)
@@ -30,30 +33,10 @@ impl RatingPlansRepo {
 
         let circuit_breaker = CircuitBreaker::new(5, std::time::Duration::from_secs(60));
 
-        // Idempotent schema for rating plans. api-server's GORM migration also
-        // creates a compatible `rating_plans` table; the column set here is
-        // intentionally a strict subset that both services agree on.
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS rating_plans (
-                plan_id      TEXT PRIMARY KEY,
-                name         TEXT NOT NULL,
-                data_rate    DOUBLE PRECISION NOT NULL,
-                voice_rate   DOUBLE PRECISION NOT NULL,
-                sms_rate     DOUBLE PRECISION NOT NULL,
-                monthly_fee  DOUBLE PRECISION NOT NULL,
-                data_limit   BIGINT NOT NULL,
-                voice_limit  BIGINT NOT NULL,
-                sms_limit    BIGINT NOT NULL,
-                is_active    BOOLEAN NOT NULL DEFAULT TRUE,
-                created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
-            "#,
-        )
-        .execute(&pool)
-        .await
-        .map_err(|e| crate::errors::ChargingError::DatabaseError(e.to_string()))?;
+        // Run Goose migrations on startup
+        if let Err(e) = run_migrations(database_url).await {
+            return Err(crate::errors::ChargingError::InternalError(format!("Migration failed: {}", e)));
+        }
 
         Ok(Self { pool, circuit_breaker })
     }
@@ -249,4 +232,20 @@ fn row_to_plan(row: sqlx::postgres::PgRow) -> RatingPlan {
         voice_limit: row.get::<i64, _>("voice_limit") as u64,
         sms_limit: row.get::<i64, _>("sms_limit") as u64,
     }
+}
+
+/// Run Goose migrations by calling the goose binary.
+/// This ensures both Go and Rust services use the same migration system.
+async fn run_migrations(database_url: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new("goose")
+        .args(["postgres", database_url, "up", "migrations"])
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Goose migration failed: {}", stderr).into());
+    }
+
+    tracing::info!("Database migrations completed successfully");
+    Ok(())
 }

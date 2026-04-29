@@ -47,9 +47,9 @@ jobs:
         run: echo "$HOME/go/bin" >> $GITHUB_PATH
 
       - name: Run database migrations
-        working-directory: .
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db?sslmode=disable
+        working-directory: .
         run: goose postgres $DATABASE_URL up migrations
 
       - name: Run linter

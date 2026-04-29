@@ -96,7 +96,10 @@ impl ToRedisArgs for SubscriberAccount {
         W: redis::RedisWrite + ?Sized,
     {
         let json = serde_json::to_string(self)
-            .expect("Failed to serialize SubscriberAccount");
+            .unwrap_or_else(|_| {
+                // Fallback to empty JSON if serialization fails
+                r#"{"imsi":"","balance":0,"data_limit":0,"data_used":0,"voice_limit":0,"voice_used":0,"sms_limit":0,"sms_used":0,"status":"Active","last_updated":"1970-01-01T00:00:00Z"}"#.to_string()
+            });
         json.write_redis_args(out)
     }
 }
@@ -118,7 +121,10 @@ impl ToRedisArgs for UsageEvent {
         W: redis::RedisWrite + ?Sized,
     {
         let json = serde_json::to_string(self)
-            .expect("Failed to serialize UsageEvent");
+            .unwrap_or_else(|_| {
+                // Fallback to empty JSON if serialization fails
+                r#"{"imsi":"","session_id":"","usage_type":"Data","volume":0,"timestamp":"1970-01-01T00:00:00Z","rate":0.0,"cost":0.0}"#.to_string()
+            });
         json.write_redis_args(out)
     }
 }

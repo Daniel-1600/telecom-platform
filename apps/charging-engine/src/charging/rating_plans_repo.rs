@@ -4,6 +4,7 @@
 //! services read a single source of truth.
 
 use std::collections::HashMap;
+use std::process::Command;
 
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use sqlx::Row;
@@ -20,8 +21,9 @@ pub struct RatingPlansRepo {
 }
 
 impl RatingPlansRepo {
-    /// Connect to Postgres using the given DSN.
-    /// Note: Database schema should be created by running migrations via `make db-migrate`
+    /// Connect to Postgres using the given DSN and run migrations.
+    /// Note: Database schema is managed by centralized migration system using Goose.
+    /// Migrations are automatically run on startup.
     pub async fn connect(database_url: &str) -> ChargingResult<Self> {
         let pool = PgPoolOptions::new()
             .max_connections(10)
@@ -31,9 +33,10 @@ impl RatingPlansRepo {
 
         let circuit_breaker = CircuitBreaker::new(5, std::time::Duration::from_secs(60));
 
-        // Note: Inline schema creation removed - schema managed by centralized migration system
-        // Run `make db-migrate` to create/update database schema
-        // The rating_plans table is created by migration 000001_init_rating_plans.up.sql
+        // Run Goose migrations on startup
+        if let Err(e) = run_migrations(database_url).await {
+            return Err(crate::errors::ChargingError::InternalError(format!("Migration failed: {}", e)));
+        }
 
         Ok(Self { pool, circuit_breaker })
     }
@@ -229,4 +232,20 @@ fn row_to_plan(row: sqlx::postgres::PgRow) -> RatingPlan {
         voice_limit: row.get::<i64, _>("voice_limit") as u64,
         sms_limit: row.get::<i64, _>("sms_limit") as u64,
     }
+}
+
+/// Run Goose migrations by calling the goose binary.
+/// This ensures both Go and Rust services use the same migration system.
+async fn run_migrations(database_url: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new("goose")
+        .args(["postgres", database_url, "up", "migrations"])
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Goose migration failed: {}", stderr).into());
+    }
+
+    tracing::info!("Database migrations completed successfully");
+    Ok(())
 }

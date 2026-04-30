@@ -9,7 +9,7 @@ resolver = "2"
 version = "1.0.0"
 authors = ["TaaS Team <team@taas-platform.com>"]
 edition = "2024"
-rust-version = "1.94"
+rust-version = "1.95"
 license = "MIT"
 
 [workspace.metadata.cargo-audit]

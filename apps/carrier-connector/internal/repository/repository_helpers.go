@@ -9,16 +9,16 @@ import (
 )
 
 // currencyToModel converts currency domain model to database model
-func (r *GormRepository) currencyToModel(currency *currency.Currency) *currency.CurrencyModel {
+func (r *GormRepository) currencyToModel(curr *currency.Currency) *currency.CurrencyModel {
 	return &currency.CurrencyModel{
-		Code:             currency.Code,
-		Name:             currency.Name,
-		Symbol:           currency.Symbol,
-		DecimalPlaces:    currency.DecimalPlaces,
-		IsActive:         currency.IsActive,
-		SupportedRegions: strings.Join(currency.SupportedRegions, ","),
-		CreatedAt:        currency.CreatedAt,
-		UpdatedAt:        currency.UpdatedAt,
+		Code:             curr.Code,
+		Name:             curr.Name,
+		Symbol:           curr.Symbol,
+		DecimalPlaces:    curr.DecimalPlaces,
+		IsActive:         curr.IsActive,
+		SupportedRegions: strings.Join(curr.SupportedRegions, ","),
+		CreatedAt:        curr.CreatedAt,
+		UpdatedAt:        curr.UpdatedAt,
 	}
 }
 

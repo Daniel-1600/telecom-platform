@@ -11,16 +11,16 @@ import (
 
 func (m *SMDPManager) DownloadProfile(ctx context.Context, req *ProfileRequest) (*ProfileResponse, error) {
 	startTime := time.Now()
-	
+
 	m.logger.WithFields(logrus.Fields{
 		"eid":       req.EID,
 		"preferred": req.PreferredCarrier,
 	}).Info("Processing profile download request")
 
-	selectedCarrier, err := m.SelectCarrier(ctx, req)
+	selectedCarrier, err := m.SelectCarrier(ctx)
 	if err != nil {
 		return &ProfileResponse{
-			Success:      false,
+			Success:       false,
 			StatusMessage: fmt.Sprintf("Carrier selection failed: %v", err),
 			ResponseTime:  time.Since(startTime),
 		}, err
@@ -34,35 +34,6 @@ func (m *SMDPManager) DownloadProfile(ctx context.Context, req *ProfileRequest) 
 
 	response.ResponseTime = time.Since(startTime)
 	return response, err
-}
-
-func (m *SMDPManager) SelectCarrier(ctx context.Context, req *ProfileRequest) (*Carrier, error) {
-	m.carriersMutex.RLock()
-	defer m.carriersMutex.RUnlock()
-
-	var activeCarriers []*Carrier
-	for _, carrier := range m.carriers {
-		if carrier.IsActive && carrier.HealthStatus == CarrierStatusHealthy {
-			activeCarriers = append(activeCarriers, carrier)
-		}
-	}
-
-	if len(activeCarriers) == 0 {
-		return nil, fmt.Errorf("no healthy carriers available")
-	}
-
-	if req.PreferredCarrier != "" {
-		if carrier, exists := m.carriers[req.PreferredCarrier]; exists && 
-		   carrier.IsActive && carrier.HealthStatus == CarrierStatusHealthy {
-			return carrier, nil
-		}
-	}
-
-	if m.config.EnableLoadBalancing {
-		return m.loadBalancer.SelectCarrier(activeCarriers, req)
-	}
-
-	return m.getHighestPriorityCarrier(activeCarriers), nil
 }
 
 func (m *SMDPManager) downloadWithRetry(ctx context.Context, req *ProfileRequest, carrier *Carrier, attempt int) (*ProfileResponse, error) {
@@ -100,10 +71,10 @@ func (m *SMDPManager) downloadWithRetry(ctx context.Context, req *ProfileRequest
 		}
 
 		return &ProfileResponse{
-			Success:      false,
-			CarrierID:    carrier.ID,
+			Success:       false,
+			CarrierID:     carrier.ID,
 			StatusMessage: fmt.Sprintf("Download failed after %d attempts: %v", attempt+1, err),
-			ResponseTime: responseTime,
+			ResponseTime:  responseTime,
 		}, err
 	}
 
@@ -114,8 +85,8 @@ func (m *SMDPManager) downloadWithRetry(ctx context.Context, req *ProfileRequest
 	}).Info("Profile download successful")
 
 	return &ProfileResponse{
-		Success:        true,
-		CarrierID:      carrier.ID,
+		Success:         true,
+		CarrierID:       carrier.ID,
 		ExecutionStatus: resp.ExecutionStatus,
 		StatusMessage:   resp.StatusMessage,
 		ResponseTime:    responseTime,
@@ -128,26 +99,26 @@ func (m *SMDPManager) handleFailover(ctx context.Context, req *ProfileRequest, f
 	defer m.carriersMutex.RUnlock()
 
 	var retriedOn []string
-	
+
 	for carrierID, carrier := range m.carriers {
 		if carrierID == failedCarrierID || !carrier.IsActive || carrier.HealthStatus != CarrierStatusHealthy {
 			continue
 		}
 
 		m.logger.WithField("carrier_id", carrierID).Info("Attempting failover to carrier")
-		
+
 		response, err := m.downloadWithRetry(ctx, req, carrier, 0)
 		if err == nil && response.Success {
 			response.RetriedOn = retriedOn
 			response.ResponseTime = time.Since(startTime)
 			return response, nil
 		}
-		
+
 		retriedOn = append(retriedOn, carrierID)
 	}
 
 	return &ProfileResponse{
-		Success:      false,
+		Success:       false,
 		StatusMessage: "All carriers failed during failover",
 		ResponseTime:  time.Since(startTime),
 		RetriedOn:     retriedOn,

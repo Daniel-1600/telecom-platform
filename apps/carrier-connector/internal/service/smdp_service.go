@@ -114,7 +114,7 @@ func (s *SMDPService) DownloadProfile(ctx context.Context, req *smdp.ProfileRequ
 
 // GetOptimalCarrier selects the best carrier for a given request
 func (s *SMDPService) GetOptimalCarrier(ctx context.Context, req *smdp.ProfileRequest) (*smdp.Carrier, error) {
-	return s.manager.SelectCarrier(ctx, req)
+	return s.manager.SelectCarrier(ctx)
 }
 
 // GetCarrierHealth returns health status of all carriers
@@ -142,6 +142,11 @@ func (s *SMDPService) RemoveCarrier(carrierID string) error {
 
 	s.logger.WithField("carrier_id", carrierID).Info("Successfully removed carrier")
 	return nil
+}
+
+// GetManager returns the underlying SMDPManager
+func (s *SMDPService) GetManager() *smdp.SMDPManager {
+	return s.manager
 }
 
 // GetCarrierMetrics returns performance metrics for all carriers

@@ -39,6 +39,17 @@ type ExchangeRateProvider interface {
 	RefreshRates(ctx context.Context) error
 }
 
+// ExchangeRateService defines the interface for exchange rate operations
+type ExchangeRateService interface {
+	GetExchangeRate(ctx context.Context, fromCurrency, toCurrency string) (*ExchangeRate, error)
+	ConvertAmount(ctx context.Context, amount float64, fromCurrency, toCurrency string) (*CurrencyConversionResponse, error)
+	GetRateHistory(ctx context.Context, fromCurrency, toCurrency string, days int) ([]*ExchangeRate, error)
+	UpdateExchangeRate(ctx context.Context, rate *ExchangeRate) error
+	GetSupportedCurrencies(ctx context.Context) ([]*Currency, error)
+	ValidateCurrencyPair(ctx context.Context, fromCurrency, toCurrency string) error
+	RefreshRates(ctx context.Context) error
+}
+
 // BillingService defines the interface for multi-currency billing operations
 type BillingService interface {
 	ProcessBilling(ctx context.Context, req *BillingRequest) (*BillingResponse, error)

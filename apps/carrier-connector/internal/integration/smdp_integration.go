@@ -3,11 +3,11 @@ package integration
 import (
 	"fmt"
 
+	"github.com/gin-gonic/gin"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/handlers"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/repository"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/service"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/smdp"
-	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,7 +25,8 @@ func NewSMDPIntegration(repo *repository.PostgresProfileStore) *SMDPIntegration 
 	logger.SetLevel(logrus.InfoLevel)
 
 	svc := service.NewSMDPService(repo)
-	hnd := handlers.NewSMDPHandler(repo)
+	manager := svc.GetManager()
+	hnd := handlers.NewSMDPHandler(manager)
 
 	integration := &SMDPIntegration{
 		service:    svc,
@@ -57,11 +58,11 @@ func (i *SMDPIntegration) InitializeSystem() error {
 
 	for id, carrier := range carriers {
 		i.logger.WithFields(logrus.Fields{
-			"carrier_id":     id,
-			"carrier_name":   carrier.Name,
-			"country":        carrier.CountryCode,
-			"health_status":  carrier.HealthStatus,
-			"is_active":      carrier.IsActive,
+			"carrier_id":    id,
+			"carrier_name":  carrier.Name,
+			"country":       carrier.CountryCode,
+			"health_status": carrier.HealthStatus,
+			"is_active":     carrier.IsActive,
 		}).Info("Carrier loaded")
 	}
 
@@ -92,10 +93,10 @@ func (i *SMDPIntegration) RegisterRoutes(router *gin.RouterGroup) {
 // healthHandler returns system health status
 func (i *SMDPIntegration) healthHandler(c *gin.Context) {
 	carriers := i.service.GetCarrierHealth()
-	
+
 	healthyCount := 0
 	totalCount := len(carriers)
-	
+
 	for _, carrier := range carriers {
 		if carrier.HealthStatus == smdp.CarrierStatusHealthy {
 			healthyCount++
@@ -137,10 +138,10 @@ func (i *SMDPIntegration) metricsHandler(c *gin.Context) {
 	}
 
 	response["total_metrics"] = gin.H{
-		"total_requests":       totalRequests,
-		"successful_requests":  totalSuccess,
-		"failed_requests":      totalFailed,
-		"success_rate":         float64(totalSuccess) / float64(totalRequests),
+		"total_requests":      totalRequests,
+		"successful_requests": totalSuccess,
+		"failed_requests":     totalFailed,
+		"success_rate":        float64(totalSuccess) / float64(totalRequests),
 	}
 
 	c.JSON(200, response)
@@ -159,40 +160,40 @@ func (i *SMDPIntegration) GetHandler() *handlers.SMDPHandler {
 // ExampleUsage demonstrates how to use the SM-DP+ integration
 func ExampleUsage() {
 	// This would typically be in your main.go or router setup
-	
+
 	/*
-	// Initialize repository
-	repo, err := repository.NewPostgresProfileStore("postgres://user:pass@localhost/db")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer repo.Close()
+		// Initialize repository
+		repo, err := repository.NewPostgresProfileStore("postgres://user:pass@localhost/db")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer repo.Close()
 
-	// Create SM-DP+ integration
-	smdpIntegration := integration.NewSMDPIntegration(repo)
+		// Create SM-DP+ integration
+		smdpIntegration := integration.NewSMDPIntegration(repo)
 
-	// Register routes
-	router := gin.Default()
-	api := router.Group("/api/v1")
-	smdpIntegration.RegisterRoutes(api)
+		// Register routes
+		router := gin.Default()
+		api := router.Group("/api/v1")
+		smdpIntegration.RegisterRoutes(api)
 
-	// Get service for direct use
-	service := smdpIntegration.GetService()
+		// Get service for direct use
+		service := smdpIntegration.GetService()
 
-	// Example: Download profile
-	ctx := context.Background()
-	req := &smdp.ProfileRequest{
-		EID:         "eid-example",
-		ICCID:       "iccid-example",
-		ProfileType: "operational",
-	}
+		// Example: Download profile
+		ctx := context.Background()
+		req := &smdp.ProfileRequest{
+			EID:         "eid-example",
+			ICCID:       "iccid-example",
+			ProfileType: "operational",
+		}
 
-	response, err := service.DownloadProfile(ctx, req)
-	if err != nil {
-		log.Printf("Profile download failed: %v", err)
-		return
-	}
+		response, err := service.DownloadProfile(ctx, req)
+		if err != nil {
+			log.Printf("Profile download failed: %v", err)
+			return
+		}
 
-	log.Printf("Profile downloaded successfully from carrier %s", response.CarrierID)
+		log.Printf("Profile downloaded successfully from carrier %s", response.CarrierID)
 	*/
 }

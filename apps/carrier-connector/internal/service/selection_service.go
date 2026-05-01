@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/handler"
+	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/handlers"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/smdp"
 	"github.com/sirupsen/logrus"
 )
@@ -13,7 +13,7 @@ import (
 // SelectionService provides high-level carrier selection operations
 type SelectionService struct {
 	manager *smdp.SMDPManager
-	handler *handler.SelectionHandler
+	handler *handlers.SelectionHandler
 	logger  *logrus.Logger
 }
 
@@ -24,13 +24,13 @@ func NewSelectionService(manager *smdp.SMDPManager) *SelectionService {
 
 	return &SelectionService{
 		manager: manager,
-		handler: handler.NewSelectionHandler(manager),
+		handler: handlers.NewSelectionHandler(manager),
 		logger:  logger,
 	}
 }
 
 // GetHandler returns the selection handler for API registration
-func (s *SelectionService) GetHandler() *handler.SelectionHandler {
+func (s *SelectionService) GetHandler() *handlers.SelectionHandler {
 	return s.handler
 }
 

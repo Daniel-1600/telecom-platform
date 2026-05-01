@@ -16,18 +16,18 @@ type GormTenantRepository struct {
 }
 
 // NewGormTenantRepository creates a new GORM tenant repository
-func NewGormTenantRepository(db *gorm.DB) Repository {
+func NewGormTenantRepository(db *gorm.DB) TenantRepository {
 	return &GormTenantRepository{db: db}
 }
 
 // CreateTenant creates a new tenant
-func (r *GormTenantRepository) CreateTenant(ctx context.Context, tenant *Tenant) error {
+func (r *GormTenantRepository) CreateTenant(ctx context.Context, tenant *tenant.Tenant) error {
 	return r.db.WithContext(ctx).Create(tenant).Error
 }
 
 // GetTenant retrieves a tenant by ID
-func (r *GormTenantRepository) GetTenant(ctx context.Context, id string) (*Tenant, error) {
-	var tenant Tenant
+func (r *GormTenantRepository) GetTenant(ctx context.Context, id string) (*tenant.Tenant, error) {
+	var tenant tenant.Tenant
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&tenant).Error
 	if err != nil {
 		return nil, err
@@ -36,8 +36,8 @@ func (r *GormTenantRepository) GetTenant(ctx context.Context, id string) (*Tenan
 }
 
 // GetTenantByDomain retrieves a tenant by domain
-func (r *GormTenantRepository) GetTenantByDomain(ctx context.Context, domain string) (*Tenant, error) {
-	var tenant Tenant
+func (r *GormTenantRepository) GetTenantByDomain(ctx context.Context, domain string) (*tenant.Tenant, error) {
+	var tenant tenant.Tenant
 	err := r.db.WithContext(ctx).Where("domain = ?", domain).First(&tenant).Error
 	if err != nil {
 		return nil, err
@@ -46,18 +46,18 @@ func (r *GormTenantRepository) GetTenantByDomain(ctx context.Context, domain str
 }
 
 // UpdateTenant updates an existing tenant
-func (r *GormTenantRepository) UpdateTenant(ctx context.Context, tenant *Tenant) error {
+func (r *GormTenantRepository) UpdateTenant(ctx context.Context, tenant *tenant.Tenant) error {
 	return r.db.WithContext(ctx).Save(tenant).Error
 }
 
 // DeleteTenant deletes a tenant
 func (r *GormTenantRepository) DeleteTenant(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&Tenant{}, "id = ?", id).Error
+	return r.db.WithContext(ctx).Delete(&tenant.Tenant{}, "id = ?", id).Error
 }
 
 // ListTenants lists tenants with filtering
-func (r *GormTenantRepository) ListTenants(ctx context.Context, filter *tenant.TenantFilter) ([]*Tenant, error) {
-	query := r.db.WithContext(ctx).Model(&Tenant{})
+func (r *GormTenantRepository) ListTenants(ctx context.Context, filter *tenant.TenantFilter) ([]*tenant.Tenant, error) {
+	query := r.db.WithContext(ctx).Model(&tenant.Tenant{})
 
 	// Apply filters
 	if filter.ID != "" {
@@ -95,14 +95,14 @@ func (r *GormTenantRepository) ListTenants(ctx context.Context, filter *tenant.T
 		query = query.Offset(filter.Offset)
 	}
 
-	var tenants []*Tenant
+	var tenants []*tenant.Tenant
 	err := query.Find(&tenants).Error
 	return tenants, err
 }
 
 // CountTenants counts tenants with filtering
 func (r *GormTenantRepository) CountTenants(ctx context.Context, filter *tenant.TenantFilter) (int, error) {
-	query := r.db.WithContext(ctx).Model(&Tenant{})
+	query := r.db.WithContext(ctx).Model(&tenant.Tenant{})
 
 	// Apply filters
 	if filter.ID != "" {
@@ -127,13 +127,13 @@ func (r *GormTenantRepository) CountTenants(ctx context.Context, filter *tenant.
 }
 
 // CreateTenantUser creates a new tenant user
-func (r *GormTenantRepository) CreateTenantUser(ctx context.Context, user *TenantUser) error {
+func (r *GormTenantRepository) CreateTenantUser(ctx context.Context, user *tenant.TenantUser) error {
 	return r.db.WithContext(ctx).Create(user).Error
 }
 
 // GetTenantUser retrieves a tenant user
-func (r *GormTenantRepository) GetTenantUser(ctx context.Context, tenantID, userID string) (*TenantUser, error) {
-	var user TenantUser
+func (r *GormTenantRepository) GetTenantUser(ctx context.Context, tenantID, userID string) (*tenant.TenantUser, error) {
+	var user tenant.TenantUser
 	err := r.db.WithContext(ctx).Where("tenant_id = ? AND user_id = ?", tenantID, userID).First(&user).Error
 	if err != nil {
 		return nil, err
@@ -142,18 +142,18 @@ func (r *GormTenantRepository) GetTenantUser(ctx context.Context, tenantID, user
 }
 
 // UpdateTenantUser updates a tenant user
-func (r *GormTenantRepository) UpdateTenantUser(ctx context.Context, user *TenantUser) error {
+func (r *GormTenantRepository) UpdateTenantUser(ctx context.Context, user *tenant.TenantUser) error {
 	return r.db.WithContext(ctx).Save(user).Error
 }
 
 // DeleteTenantUser deletes a tenant user
 func (r *GormTenantRepository) DeleteTenantUser(ctx context.Context, tenantID, userID string) error {
-	return r.db.WithContext(ctx).Delete(&TenantUser{}, "tenant_id = ? AND user_id = ?", tenantID, userID).Error
+	return r.db.WithContext(ctx).Delete(&tenant.TenantUser{}, "tenant_id = ? AND user_id = ?", tenantID, userID).Error
 }
 
 // ListTenantUsers lists tenant users with filtering
-func (r *GormTenantRepository) ListTenantUsers(ctx context.Context, filter *tenant.TenantUserFilter) ([]*TenantUser, error) {
-	query := r.db.WithContext(ctx).Model(&TenantUser{})
+func (r *GormTenantRepository) ListTenantUsers(ctx context.Context, filter *tenant.TenantUserFilter) ([]*tenant.TenantUser, error) {
+	query := r.db.WithContext(ctx).Model(&tenant.TenantUser{})
 
 	// Apply filters
 	if filter.TenantID != "" {
@@ -180,14 +180,14 @@ func (r *GormTenantRepository) ListTenantUsers(ctx context.Context, filter *tena
 		query = query.Offset(filter.Offset)
 	}
 
-	var users []*TenantUser
+	var users []*tenant.TenantUser
 	err := query.Find(&users).Error
 	return users, err
 }
 
 // CountTenantUsers counts tenant users with filtering
 func (r *GormTenantRepository) CountTenantUsers(ctx context.Context, filter *tenant.TenantUserFilter) (int, error) {
-	query := r.db.WithContext(ctx).Model(&TenantUser{})
+	query := r.db.WithContext(ctx).Model(&tenant.TenantUser{})
 
 	// Apply filters
 	if filter.TenantID != "" {
@@ -212,13 +212,13 @@ func (r *GormTenantRepository) CountTenantUsers(ctx context.Context, filter *ten
 }
 
 // CreateAPIKey creates a new API key
-func (r *GormTenantRepository) CreateAPIKey(ctx context.Context, apiKey *TenantAPIKey) error {
+func (r *GormTenantRepository) CreateAPIKey(ctx context.Context, apiKey *tenant.TenantAPIKey) error {
 	return r.db.WithContext(ctx).Create(apiKey).Error
 }
 
 // GetAPIKey retrieves an API key by ID
-func (r *GormTenantRepository) GetAPIKey(ctx context.Context, id string) (*TenantAPIKey, error) {
-	var apiKey TenantAPIKey
+func (r *GormTenantRepository) GetAPIKey(ctx context.Context, id string) (*tenant.TenantAPIKey, error) {
+	var apiKey tenant.TenantAPIKey
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&apiKey).Error
 	if err != nil {
 		return nil, err
@@ -227,8 +227,8 @@ func (r *GormTenantRepository) GetAPIKey(ctx context.Context, id string) (*Tenan
 }
 
 // GetAPIKeyByHash retrieves an API key by hash
-func (r *GormTenantRepository) GetAPIKeyByHash(ctx context.Context, keyHash string) (*TenantAPIKey, error) {
-	var apiKey TenantAPIKey
+func (r *GormTenantRepository) GetAPIKeyByHash(ctx context.Context, keyHash string) (*tenant.TenantAPIKey, error) {
+	var apiKey tenant.TenantAPIKey
 	err := r.db.WithContext(ctx).Where("key_hash = ?", keyHash).First(&apiKey).Error
 	if err != nil {
 		return nil, err
@@ -237,30 +237,30 @@ func (r *GormTenantRepository) GetAPIKeyByHash(ctx context.Context, keyHash stri
 }
 
 // UpdateAPIKey updates an API key
-func (r *GormTenantRepository) UpdateAPIKey(ctx context.Context, apiKey *TenantAPIKey) error {
+func (r *GormTenantRepository) UpdateAPIKey(ctx context.Context, apiKey *tenant.TenantAPIKey) error {
 	return r.db.WithContext(ctx).Save(apiKey).Error
 }
 
 // DeleteAPIKey deletes an API key
 func (r *GormTenantRepository) DeleteAPIKey(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&TenantAPIKey{}, "id = ?", id).Error
+	return r.db.WithContext(ctx).Delete(&tenant.TenantAPIKey{}, "id = ?", id).Error
 }
 
 // ListAPIKeys lists API keys for a tenant
-func (r *GormTenantRepository) ListAPIKeys(ctx context.Context, tenantID string) ([]*TenantAPIKey, error) {
-	var apiKeys []*TenantAPIKey
+func (r *GormTenantRepository) ListAPIKeys(ctx context.Context, tenantID string) ([]*tenant.TenantAPIKey, error) {
+	var apiKeys []*tenant.TenantAPIKey
 	err := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID).Order("created_at DESC").Find(&apiKeys).Error
 	return apiKeys, err
 }
 
 // CreateUsage creates a new usage record
-func (r *GormTenantRepository) CreateUsage(ctx context.Context, usage *TenantUsage) error {
+func (r *GormTenantRepository) CreateUsage(ctx context.Context, usage *tenant.TenantUsage) error {
 	return r.db.WithContext(ctx).Create(usage).Error
 }
 
 // GetUsage retrieves usage by tenant and resource type
-func (r *GormTenantRepository) GetUsage(ctx context.Context, tenantID, resourceType string) (*TenantUsage, error) {
-	var usage TenantUsage
+func (r *GormTenantRepository) GetUsage(ctx context.Context, tenantID, resourceType string) (*tenant.TenantUsage, error) {
+	var usage tenant.TenantUsage
 	err := r.db.WithContext(ctx).Where("tenant_id = ? AND resource_type = ?", tenantID, resourceType).First(&usage).Error
 	if err != nil {
 		return nil, err
@@ -269,13 +269,13 @@ func (r *GormTenantRepository) GetUsage(ctx context.Context, tenantID, resourceT
 }
 
 // UpdateUsage updates a usage record
-func (r *GormTenantRepository) UpdateUsage(ctx context.Context, usage *TenantUsage) error {
+func (r *GormTenantRepository) UpdateUsage(ctx context.Context, usage *tenant.TenantUsage) error {
 	return r.db.WithContext(ctx).Save(usage).Error
 }
 
 // ListUsage lists usage records with filtering
-func (r *GormTenantRepository) ListUsage(ctx context.Context, filter *tenant.TenantUsageFilter) ([]*TenantUsage, error) {
-	query := r.db.WithContext(ctx).Model(&TenantUsage{})
+func (r *GormTenantRepository) ListUsage(ctx context.Context, filter *tenant.TenantUsageFilter) ([]*tenant.TenantUsage, error) {
+	query := r.db.WithContext(ctx).Model(&tenant.TenantUsage{})
 
 	// Apply filters
 	if filter.TenantID != "" {
@@ -299,7 +299,7 @@ func (r *GormTenantRepository) ListUsage(ctx context.Context, filter *tenant.Ten
 		query = query.Offset(filter.Offset)
 	}
 
-	var usage []*TenantUsage
+	var usage []*tenant.TenantUsage
 	err := query.Find(&usage).Error
 	return usage, err
 }
@@ -334,7 +334,7 @@ func (r *GormTenantRepository) GetUsageStats(ctx context.Context, tenantID strin
 }
 
 // GetConfig retrieves tenant configuration
-func (r *GormTenantRepository) GetConfig(ctx context.Context, tenantID string) (*TenantConfig, error) {
+func (r *GormTenantRepository) GetConfig(ctx context.Context, tenantID string) (*tenant.TenantConfig, error) {
 	// Get tenant to extract settings
 	tenant, err := r.GetTenant(ctx, tenantID)
 	if err != nil {
@@ -342,36 +342,36 @@ func (r *GormTenantRepository) GetConfig(ctx context.Context, tenantID string) (
 	}
 
 	// Create basic config
-	config := &TenantConfig{
+	config := &tenant.TenantConfig{
 		TenantID: tenantID,
 		Config:   make(map[string]interface{}),
 		Settings: tenant.Settings,
-		Quotas:   []ResourceQuota{},
+		Quotas:   []tenant.ResourceQuota{},
 		Features: make(map[string]bool),
 	}
 
 	// Add default quotas based on plan
 	switch tenant.Plan {
-	case TenantPlanFree:
-		config.Quotas = []ResourceQuota{
+	case tenant.TenantPlanFree:
+		config.Quotas = []tenant.ResourceQuota{
 			{ResourceType: "users", Limit: 5, Period: "monthly"},
 			{ResourceType: "profiles", Limit: 100, Period: "monthly"},
 			{ResourceType: "carriers", Limit: 3, Period: "monthly"},
 		}
-	case TenantPlanBasic:
-		config.Quotas = []ResourceQuota{
+	case tenant.TenantPlanBasic:
+		config.Quotas = []tenant.ResourceQuota{
 			{ResourceType: "users", Limit: 25, Period: "monthly"},
 			{ResourceType: "profiles", Limit: 1000, Period: "monthly"},
 			{ResourceType: "carriers", Limit: 10, Period: "monthly"},
 		}
-	case TenantPlanPro:
-		config.Quotas = []ResourceQuota{
+	case tenant.TenantPlanPro:
+		config.Quotas = []tenant.ResourceQuota{
 			{ResourceType: "users", Limit: 100, Period: "monthly"},
 			{ResourceType: "profiles", Limit: 10000, Period: "monthly"},
 			{ResourceType: "carriers", Limit: 50, Period: "monthly"},
 		}
-	case TenantPlanEnterprise:
-		config.Quotas = []ResourceQuota{
+	case tenant.TenantPlanEnterprise:
+		config.Quotas = []tenant.ResourceQuota{
 			{ResourceType: "users", Limit: -1, Period: "monthly"},
 			{ResourceType: "profiles", Limit: -1, Period: "monthly"},
 			{ResourceType: "carriers", Limit: -1, Period: "monthly"},
@@ -380,21 +380,21 @@ func (r *GormTenantRepository) GetConfig(ctx context.Context, tenantID string) (
 
 	// Add default features based on plan
 	switch tenant.Plan {
-	case TenantPlanFree:
+	case tenant.TenantPlanFree:
 		config.Features = map[string]bool{
 			"multi_currency":     false,
 			"advanced_analytics": false,
 			"api_access":         true,
 			"webhooks":           false,
 		}
-	case TenantPlanBasic:
+	case tenant.TenantPlanBasic:
 		config.Features = map[string]bool{
 			"multi_currency":     true,
 			"advanced_analytics": false,
 			"api_access":         true,
 			"webhooks":           false,
 		}
-	case TenantPlanPro, TenantPlanEnterprise:
+	case tenant.TenantPlanPro, tenant.TenantPlanEnterprise:
 		config.Features = map[string]bool{
 			"multi_currency":     true,
 			"advanced_analytics": true,
@@ -407,7 +407,7 @@ func (r *GormTenantRepository) GetConfig(ctx context.Context, tenantID string) (
 }
 
 // UpdateConfig updates tenant configuration
-func (r *GormTenantRepository) UpdateConfig(ctx context.Context, config *TenantConfig) error {
+func (r *GormTenantRepository) UpdateConfig(ctx context.Context, config *tenant.TenantConfig) error {
 	// Store configuration in tenant metadata or separate table
 	// For now, update tenant settings
 	tenant, err := r.GetTenant(ctx, config.TenantID)
@@ -423,7 +423,7 @@ func (r *GormTenantRepository) UpdateConfig(ctx context.Context, config *TenantC
 }
 
 // CreateEvent creates a new tenant event
-func (r *GormTenantRepository) CreateEvent(ctx context.Context, event *TenantEvent) error {
+func (r *GormTenantRepository) CreateEvent(ctx context.Context, event *tenant.TenantEvent) error {
 	// Store events in a separate table or log system
 	// For now, we'll use a simple approach with JSON storage
 	eventData, err := json.Marshal(event)
@@ -448,7 +448,7 @@ func (r *GormTenantRepository) CreateEvent(ctx context.Context, event *TenantEve
 }
 
 // ListEvents lists tenant events
-func (r *GormTenantRepository) ListEvents(ctx context.Context, tenantID string, limit int) ([]*TenantEvent, error) {
+func (r *GormTenantRepository) ListEvents(ctx context.Context, tenantID string, limit int) ([]*tenant.TenantEvent, error) {
 	// Query events from the events table
 	var eventRecords []struct {
 		ID        string    `gorm:"primaryKey"`
@@ -469,9 +469,9 @@ func (r *GormTenantRepository) ListEvents(ctx context.Context, tenantID string, 
 	}
 
 	// Unmarshal events
-	var events []*TenantEvent
+	var events []*tenant.TenantEvent
 	for _, record := range eventRecords {
-		var event TenantEvent
+		var event tenant.TenantEvent
 		if err := json.Unmarshal([]byte(record.EventData), &event); err != nil {
 			continue // Skip malformed events
 		}

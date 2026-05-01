@@ -1,134 +1,86 @@
 package integration
 
 import (
-	"log"
-	"time"
+	"fmt"
 
-	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/config"
+	"github.com/sirupsen/logrus"
+
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/smdp"
 )
 
-// SetupCarriers configures default carriers for demonstration
+// SetupCarriers loads real carrier configurations from database or config files
 func (si *SelectionIntegration) SetupCarriers() error {
-	// Configure sample carriers with different characteristics
-	carriers := []*smdp.Carrier{
-		{
-			ID:          "att-us",
-			Name:        "AT&T US",
-			MCC:         "310",
-			MNC:         "410",
-			CountryCode: "US",
-			IsActive:    true,
-			Priority:    90,
-			ES2Config: &config.ES2Config{
-				BaseURL:                  "https://es2plus.att.com",
-				APIKey:                   "demo-key-att",
-				InsecureSkipVerify:       false,
-				FunctionalityRequesterID: "telecom-platform",
-			},
-			Capabilities: &smdp.CarrierCapabilities{
-				SupportedProfileTypes: []string{"operational", "testing"},
-				Features:              []string{"bulk_download", "remote_provisioning"},
-				MaxConcurrentRequests: 100,
-			},
-			Metrics: &smdp.CarrierMetrics{
-				TotalRequests:       1000,
-				SuccessfulRequests:  980,
-				FailedRequests:      20,
-				AverageResponseTime: 150 * time.Millisecond,
-				RequestRate:         10.5,
-			},
-		},
-		{
-			ID:          "verizon-us",
-			Name:        "Verizon US",
-			MCC:         "311",
-			MNC:         "480",
-			CountryCode: "US",
-			IsActive:    true,
-			Priority:    85,
-			ES2Config: &config.ES2Config{
-				BaseURL:                  "https://es2plus.verizon.com",
-				APIKey:                   "demo-key-verizon",
-				InsecureSkipVerify:       false,
-				FunctionalityRequesterID: "telecom-platform",
-			},
-			Capabilities: &smdp.CarrierCapabilities{
-				SupportedProfileTypes: []string{"operational", "testing"},
-				Features:              []string{"bulk_download"},
-				MaxConcurrentRequests: 80,
-			},
-			Metrics: &smdp.CarrierMetrics{
-				TotalRequests:       800,
-				SuccessfulRequests:  790,
-				FailedRequests:      10,
-				AverageResponseTime: 120 * time.Millisecond,
-				RequestRate:         8.2,
-			},
-		},
-		{
-			ID:          "tmobile-de",
-			Name:        "T-Mobile Germany",
-			MCC:         "262",
-			MNC:         "01",
-			CountryCode: "DE",
-			IsActive:    true,
-			Priority:    75,
-			ES2Config: &config.ES2Config{
-				BaseURL:                  "https://es2plus.t-mobile.de",
-				APIKey:                   "demo-key-tmobile",
-				InsecureSkipVerify:       false,
-				FunctionalityRequesterID: "telecom-platform",
-			},
-			Capabilities: &smdp.CarrierCapabilities{
-				SupportedProfileTypes: []string{"operational"},
-				Features:              []string{"remote_provisioning"},
-				MaxConcurrentRequests: 60,
-			},
-			Metrics: &smdp.CarrierMetrics{
-				TotalRequests:       600,
-				SuccessfulRequests:  570,
-				FailedRequests:      30,
-				AverageResponseTime: 200 * time.Millisecond,
-				RequestRate:         6.8,
-			},
-		},
-		{
-			ID:          "orange-fr",
-			Name:        "Orange France",
-			MCC:         "208",
-			MNC:         "01",
-			CountryCode: "FR",
-			IsActive:    true,
-			Priority:    70,
-			ES2Config: &config.ES2Config{
-				BaseURL:                  "https://es2plus.orange.fr",
-				APIKey:                   "demo-key-orange",
-				InsecureSkipVerify:       false,
-				FunctionalityRequesterID: "telecom-platform",
-			},
-			Capabilities: &smdp.CarrierCapabilities{
-				SupportedProfileTypes: []string{"operational", "testing"},
-				Features:              []string{},
-				MaxConcurrentRequests: 50,
-			},
-			Metrics: &smdp.CarrierMetrics{
-				TotalRequests:       400,
-				SuccessfulRequests:  380,
-				FailedRequests:      20,
-				AverageResponseTime: 180 * time.Millisecond,
-				RequestRate:         4.5,
-			},
-		},
+	logger := logrus.New()
+	logger.SetLevel(logrus.InfoLevel)
+
+	logger.Info("Loading carriers from configuration")
+
+	// Load carriers from configuration file
+	configPath := "configs/carriers.json"
+
+	config, err := LoadCarriersFromFile(configPath)
+	if err != nil {
+		logger.WithError(err).Error("Failed to load carriers from config file")
+		return fmt.Errorf("failed to load carriers from config: %w", err)
 	}
 
-	// Add carriers to the manager
+	carriers, err := ConvertConfigToCarriers(config)
+	if err != nil {
+		logger.WithError(err).Error("Failed to convert config to carriers")
+		return fmt.Errorf("failed to convert config: %w", err)
+	}
+
+	// Validate and add carriers to SMDP manager
+	successCount := 0
 	for _, carrier := range carriers {
-		if err := si.manager.AddCarrier(carrier); err != nil {
-			return err
+		if err := validateCarrier(carrier); err != nil {
+			logger.WithError(err).WithField("carrier_id", carrier.ID).Error("Carrier validation failed")
+			continue
 		}
+
+		if err := si.manager.AddCarrier(carrier); err != nil {
+			logger.WithError(err).WithField("carrier_id", carrier.ID).Error("Failed to add carrier to manager")
+			continue
+		}
+		successCount++
 	}
 
-	log.Printf("Added %d carriers to the selection manager", len(carriers))
+	logger.WithFields(logrus.Fields{
+		"config_file":   configPath,
+		"total_loaded":  len(carriers),
+		"success_count": successCount,
+		"failed_count":  len(carriers) - successCount,
+	}).Info("Carriers loaded from configuration file")
+
+	return nil
+}
+
+// validateCarrier validates carrier configuration
+func validateCarrier(carrier *smdp.Carrier) error {
+	if carrier.ID == "" {
+		return fmt.Errorf("carrier ID is required")
+	}
+	if carrier.Name == "" {
+		return fmt.Errorf("carrier name is required")
+	}
+	if carrier.MCC == "" {
+		return fmt.Errorf("carrier MCC is required")
+	}
+	if carrier.MNC == "" {
+		return fmt.Errorf("carrier MNC is required")
+	}
+	if carrier.CountryCode == "" {
+		return fmt.Errorf("carrier country code is required")
+	}
+	if carrier.ES2Config == nil {
+		return fmt.Errorf("carrier ES2 config is required")
+	}
+	if carrier.ES2Config.BaseURL == "" {
+		return fmt.Errorf("carrier ES2 base URL is required")
+	}
+	if carrier.ES2Config.APIKey == "" {
+		return fmt.Errorf("carrier ES2 API key is required")
+	}
+
 	return nil
 }

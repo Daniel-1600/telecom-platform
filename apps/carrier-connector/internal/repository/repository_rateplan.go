@@ -131,7 +131,6 @@ func (r *GormRepository) GetUsageAnalytics(ctx context.Context, filter *UsageAna
 
 // GetRevenueAnalytics retrieves revenue analytics
 func (r *GormRepository) GetRevenueAnalytics(ctx context.Context, filter *RevenueAnalyticsFilter) (*RevenueAnalytics, error) {
-	// Simplified implementation - in production, you'd have actual revenue tracking
 	analytics := &RevenueAnalytics{
 		TotalRevenue:     0,
 		RevenueByPlan:    make(map[string]float64),
@@ -141,8 +140,41 @@ func (r *GormRepository) GetRevenueAnalytics(ctx context.Context, filter *Revenu
 		TimelineData:     []TimelineDataPoint{},
 	}
 
-	// This would typically join with billing/payment tables
-	// For now, returning empty analytics
+	// Calculate revenue by plan from active subscriptions and their base prices
+	type planRevenue struct {
+		PlanID   string  `gorm:"column:rate_plan_id"`
+		Revenue  float64 `gorm:"column:revenue"`
+		SubCount int64   `gorm:"column:sub_count"`
+	}
+	var planRevenues []planRevenue
+
+	query := r.db.WithContext(ctx).
+		Table("rate_plan_subscriptions").
+		Select("rate_plan_subscriptions.rate_plan_id, SUM(rate_plans.base_price) as revenue, COUNT(rate_plan_subscriptions.id) as sub_count").
+		Joins("JOIN rate_plans ON rate_plans.id = rate_plan_subscriptions.rate_plan_id").
+		Where("rate_plan_subscriptions.status = ?", "active").
+		Group("rate_plan_subscriptions.rate_plan_id")
+
+	if filter != nil && !filter.StartDate.IsZero() {
+		query = query.Where("rate_plan_subscriptions.created_at >= ?", filter.StartDate)
+	}
+	if filter != nil && !filter.EndDate.IsZero() {
+		query = query.Where("rate_plan_subscriptions.created_at <= ?", filter.EndDate)
+	}
+
+	if err := query.Find(&planRevenues).Error; err != nil {
+		// Non-fatal: return partial results with a log
+		r.logger.WithError(err).Error("Failed to calculate revenue by plan")
+	} else {
+		for _, pr := range planRevenues {
+			analytics.RevenueByPlan[pr.PlanID] = pr.Revenue
+			analytics.TotalRevenue += pr.Revenue
+			if pr.SubCount > 0 {
+				analytics.AverageRevenue[pr.PlanID] = pr.Revenue / float64(pr.SubCount)
+			}
+		}
+	}
+
 	return analytics, nil
 }
 

@@ -10,8 +10,6 @@ import (
 
 // GetUsageStats retrieves usage statistics for a tenant
 func (r *GormTenantRepository) GetUsageStats(ctx context.Context, tenantID string) (*tenant.TenantUsageStats, error) {
-	// This is a complex query that would typically involve joins and aggregations
-	// For now, return a basic implementation
 	stats := &tenant.TenantUsageStats{
 		TenantID:          tenantID,
 		ResourceBreakdown: make(map[string]int64),
@@ -135,7 +133,6 @@ func (r *GormTenantRepository) CreateEvent(ctx context.Context, event *tenant.Te
 		return err
 	}
 
-	// Create a simple event record (in a real implementation, this would be a proper table)
 	eventRecord := struct {
 		ID        string    `gorm:"primaryKey"`
 		TenantID  string    `gorm:"index"`

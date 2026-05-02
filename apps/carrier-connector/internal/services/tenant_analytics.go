@@ -161,24 +161,77 @@ func (s *TenantServiceImpl) parseAPIRequestEvents(events []*tenant.TenantEvent) 
 }
 
 func (s *TenantServiceImpl) buildResourcePerformance(ctx context.Context, tenantID, timeRange string) map[string]*tenant.ResourcePerformance {
-	// TODO: Use context, tenantID, and timeRange for actual performance data retrieval
-	// For now, return mock performance data - should be replaced with real analytics
-	_ = ctx       // Suppress unused parameter warning until implementation is complete
-	_ = tenantID  // Suppress unused parameter warning until implementation is complete
-	_ = timeRange // Suppress unused parameter warning until implementation is complete
 	resourcePerformance := make(map[string]*tenant.ResourcePerformance)
 
-	resourceTypes := []string{"users", "profiles", "carriers", "api_calls", "storage"}
+	// Determine event limit based on time range
+	eventLimit := 100
+	switch timeRange {
+	case "1h":
+		eventLimit = 50
+	case "24h":
+		eventLimit = 200
+	case "7d":
+		eventLimit = 500
+	case "30d":
+		eventLimit = 1000
+	}
 
-	for _, resourceType := range resourceTypes {
-		performance := &tenant.ResourcePerformance{
-			ResourceType: resourceType,
-			ResponseTime: 150.5,  // Mock response time in ms
-			Throughput:   1000.0, // Mock requests per second
-			ErrorRate:    2.1,    // Mock error rate percentage
+	// Retrieve actual tenant events for performance calculation
+	events, err := s.repository.ListEvents(ctx, tenantID, eventLimit)
+	if err != nil {
+		s.logger.WithError(err).Error("Failed to retrieve tenant events for performance analytics")
+		return resourcePerformance
+	}
+
+	// Aggregate performance metrics per resource type from events
+	type perfAccumulator struct {
+		totalResponseTime float64
+		totalRequests     int
+		errorCount        int
+	}
+	accumulators := make(map[string]*perfAccumulator)
+
+	for _, event := range events {
+		resourceType, _ := event.EventData["resource_type"].(string)
+		if resourceType == "" {
+			resourceType = string(event.EventType)
 		}
 
-		resourcePerformance[resourceType] = performance
+		acc, exists := accumulators[resourceType]
+		if !exists {
+			acc = &perfAccumulator{}
+			accumulators[resourceType] = acc
+		}
+
+		acc.totalRequests++
+
+		if respTime, ok := event.EventData["response_time"].(float64); ok {
+			acc.totalResponseTime += respTime
+		}
+
+		if event.EventType == "error" || event.EventType == tenant.TenantEventQuotaExceeded {
+			acc.errorCount++
+		}
+	}
+
+	// Convert accumulators to ResourcePerformance
+	for resourceType, acc := range accumulators {
+		avgResponseTime := 0.0
+		if acc.totalRequests > 0 {
+			avgResponseTime = acc.totalResponseTime / float64(acc.totalRequests)
+		}
+
+		errorRate := 0.0
+		if acc.totalRequests > 0 {
+			errorRate = (float64(acc.errorCount) / float64(acc.totalRequests)) * 100
+		}
+
+		resourcePerformance[resourceType] = &tenant.ResourcePerformance{
+			ResourceType: resourceType,
+			ResponseTime: avgResponseTime,
+			Throughput:   float64(acc.totalRequests),
+			ErrorRate:    errorRate,
+		}
 	}
 
 	return resourcePerformance

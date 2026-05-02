@@ -8,8 +8,9 @@ import (
 
 // LoadBalancer implements different load balancing strategies for carrier selection
 type LoadBalancer struct {
-	strategy LoadBalancingStrategy
-	rand     *rand.Rand
+	strategy  LoadBalancingStrategy
+	rand      *rand.Rand
+	rrCounter uint64 // round-robin request counter
 }
 
 // LoadBalancingStrategy defines the load balancing algorithm
@@ -55,9 +56,9 @@ func (lb *LoadBalancer) SelectCarrier(carriers []*Carrier, req *ProfileRequest) 
 
 // roundRobinSelect implements round-robin carrier selection
 func (lb *LoadBalancer) roundRobinSelect(carriers []*Carrier) *Carrier {
-	// Simple round-robin based on request count
-	// In a real implementation, you'd maintain state across requests
-	return carriers[0] // Simplified for demo
+	idx := lb.rrCounter % uint64(len(carriers))
+	lb.rrCounter++
+	return carriers[idx]
 }
 
 // weightedRoundRobinSelect selects carrier based on priority and health

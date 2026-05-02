@@ -161,8 +161,10 @@ func (rpci *RatePlanCurrencyIntegrator) CalculatePlanCostInCurrency(ctx context.
 }
 
 func (rpci *RatePlanCurrencyIntegrator) calculateOverageCost(ctx context.Context, plan *rateplan.RatePlan, usage *rateplan.RatePlanUsage) (float64, error) {
-	// TODO: Use context for timeout/cancellation in overage calculations
-	_ = ctx // Suppress unused parameter warning until implementation is complete
+	// Check for context cancellation before calculation
+	if err := ctx.Err(); err != nil {
+		return 0.0, fmt.Errorf("overage calculation cancelled: %w", err)
+	}
 	overageCost := 0.0
 
 	if plan.DataAllowance != nil && usage.DataUsed > plan.DataAllowance.Amount {

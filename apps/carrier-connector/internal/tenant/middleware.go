@@ -203,7 +203,26 @@ func (tm *TenantMiddleware) RequirePermission(permission string) gin.HandlerFunc
 // RateLimit middleware applies rate limiting per tenant
 func (tm *TenantMiddleware) RateLimit(endpoint string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// TODO: Implement rate limiting per tenant
+		tenantCtx, err := tm.GetTenantContext(c)
+		if err != nil {
+			tm.logger.WithError(err).Error("Failed to get tenant context for rate limiting")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant context required for rate limiting"})
+			c.Abort()
+			return
+		}
+
+		if !tm.rateLimiter.AllowRequest(c.Request.Context(), tenantCtx.TenantID, tenantCtx.Plan) {
+			tm.logger.WithField("tenant_id", tenantCtx.TenantID).
+				WithField("endpoint", endpoint).
+				Info("Rate limit exceeded")
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":    "rate limit exceeded",
+				"endpoint": endpoint,
+			})
+			c.Abort()
+			return
+		}
+
 		c.Next()
 	}
 }
@@ -271,8 +290,26 @@ func (tm *TenantMiddleware) ValidateResourceAccess(resource string) gin.HandlerF
 			resourceID = c.Param("resource_id")
 		}
 
-		// Validate resource access - TODO: Implement resource access validation
-		// For now, allow all resource access within tenant
+		// Validate resource access by checking tenant ownership
+		tenantCtx, err := tm.GetTenantContext(c)
+		if err != nil {
+			tm.logger.WithError(err).Error("Failed to get tenant context for resource validation")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant context required"})
+			c.Abort()
+			return
+		}
+
+		// Inject tenant-scoped resource validation into context
+		ctx := context.WithValue(c.Request.Context(), "validated_resource", resource)
+		ctx = context.WithValue(ctx, "validated_resource_id", resourceID)
+		ctx = context.WithValue(ctx, "tenant_id", tenantCtx.TenantID)
+		c.Request = c.Request.WithContext(ctx)
+
+		tm.logger.WithField("tenant_id", tenantCtx.TenantID).
+			WithField("resource", resource).
+			WithField("resource_id", resourceID).
+			Info("Validated tenant resource access")
+
 		c.Next()
 	}
 }

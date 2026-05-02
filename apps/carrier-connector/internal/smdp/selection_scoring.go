@@ -102,10 +102,53 @@ func (sa *SelectionAlgorithm) calculateRegionScore(carrier *Carrier, region stri
 		return 100.0
 	}
 
-	// Check regional compatibility through MCC
-	// This would require a region-to-MCC mapping
-	// For now, return neutral score
-	return 50.0
+	// Check regional compatibility through MCC-to-region mapping
+	mccRegion := mccToRegion(carrier.MCC)
+	if mccRegion == region {
+		return 90.0 // Strong match via MCC
+	}
+
+	// Partial match: same continent/area based on MCC range
+	if sameRegionGroup(mccRegion, region) {
+		return 70.0
+	}
+
+	return 30.0 // Low score for distant regions
+}
+
+// mccToRegion maps MCC codes to region identifiers
+func mccToRegion(mcc string) string {
+	if len(mcc) < 1 {
+		return ""
+	}
+	// MCC ranges: 2xx=Europe, 3xx=North America/Caribbean, 4xx=Asia,
+	// 5xx=Oceania/Australia, 6xx=Africa, 7xx=South America
+	switch mcc[0] {
+	case '2':
+		return "EU"
+	case '3':
+		return "NA"
+	case '4':
+		return "AS"
+	case '5':
+		return "OC"
+	case '6':
+		return "AF"
+	case '7':
+		return "SA"
+	default:
+		return ""
+	}
+}
+
+// sameRegionGroup checks if two regions are in the same broader geographic group
+func sameRegionGroup(r1, r2 string) bool {
+	groups := map[string]string{
+		"EU": "EMEA", "AF": "EMEA",
+		"NA": "AMER", "SA": "AMER",
+		"AS": "APAC", "OC": "APAC",
+	}
+	return groups[r1] != "" && groups[r1] == groups[r2]
 }
 
 // calculateCapabilityScore evaluates carrier capabilities

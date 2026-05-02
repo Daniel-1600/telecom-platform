@@ -193,16 +193,79 @@ func (h *CurrencyHandler) ProcessRefund(c *gin.Context) {
 		return
 	}
 
-	// This would need to be added to the BillingService interface
-	// For now, we'll return an error
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Refund processing not yet implemented"})
+	// Process refund as a negative billing entry
+	refundReq := &currency.BillingRequest{
+		ProfileID:   c.Param("profile_id"),
+		Amount:      -req.Amount, // Negative amount for refund
+		Currency:    "USD",
+		Description: "Refund: " + req.Reason,
+		BillingDate: time.Now(),
+	}
+
+	if refundReq.ProfileID == "" {
+		refundReq.ProfileID = transactionID // Use transaction ID as fallback reference
+	}
+
+	resp, err := h.billingService.ProcessBilling(c.Request.Context(), refundReq)
+	if err != nil {
+		h.logger.WithError(err).Error("Failed to process refund")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"refund_id":      resp.TransactionID,
+		"transaction_id": transactionID,
+		"amount":         req.Amount,
+		"reason":         req.Reason,
+		"status":         resp.Status,
+		"processed_at":   resp.ProcessedAt,
+	})
 }
 
 // GetBillingAnalytics handles billing analytics requests
 func (h *CurrencyHandler) GetBillingAnalytics(c *gin.Context) {
-	// This would need to be added to the BillingService interface
-	// For now, we'll return an error
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Billing analytics not yet implemented"})
+	profileID := c.Query("profile_id")
+	if profileID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "profile_id query parameter is required"})
+		return
+	}
+
+	// Default to last 30 days
+	toDate := time.Now()
+	fromDate := toDate.AddDate(0, -1, 0)
+
+	if from := c.Query("from"); from != "" {
+		if parsed, err := time.Parse(time.RFC3339, from); err == nil {
+			fromDate = parsed
+		}
+	}
+	if to := c.Query("to"); to != "" {
+		if parsed, err := time.Parse(time.RFC3339, to); err == nil {
+			toDate = parsed
+		}
+	}
+
+	summary, err := h.billingService.CalculateTotalBilling(c.Request.Context(), profileID, fromDate, toDate)
+	if err != nil {
+		h.logger.WithError(err).Error("Failed to get billing analytics")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	history, err := h.billingService.GetBillingHistory(c.Request.Context(), profileID, nil)
+	if err != nil {
+		h.logger.WithError(err).Error("Failed to get billing history for analytics")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"summary":           summary,
+		"transaction_count": len(history),
+		"from_date":         fromDate,
+		"to_date":           toDate,
+	})
 }
 
 // GetSupportedCurrencies handles supported currencies requests

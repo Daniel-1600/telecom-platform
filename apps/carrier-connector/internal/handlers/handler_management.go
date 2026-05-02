@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 
-	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/monitor"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/mvno"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/repository"
 )
@@ -83,7 +82,7 @@ func (h *ManagementHandler) UpdateMVNOStatus(c *gin.Context) {
 	}
 
 	var req struct {
-		Status monitor.MVNOStatus `json:"status" binding:"required"`
+		Status mvno.MVNOStatus `json:"status" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

@@ -1,25 +1,31 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/mvno"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/repository"
-	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/services"
 	"github.com/sirupsen/logrus"
 )
 
-// Handler handles HTTP requests for MVNO operations
-type Handler struct {
-	service *services.OnboardingService
+// OnboardingService defines the interface for MVNO onboarding operations
+type OnboardingService interface {
+	StartOnboarding(ctx context.Context, req *mvno.OnboardingRequest) (*mvno.MVNO, error)
+}
+
+// MVNOHandler handles HTTP requests for MVNO operations
+type MVNOHandler struct {
+	service OnboardingService
 	repo    repository.Repository
 	logger  *logrus.Logger
 }
 
-// NewHandler creates a new HTTP handler
-func NewHandler(service *services.OnboardingService, repo repository.Repository, logger *logrus.Logger) *Handler {
-	return &Handler{
+// NewMVNOHandler creates a new MVNO HTTP handler
+func NewMVNOHandler(service OnboardingService, repo repository.Repository, logger *logrus.Logger) *MVNOHandler {
+	return &MVNOHandler{
 		service: service,
 		repo:    repo,
 		logger:  logger,
@@ -27,8 +33,8 @@ func NewHandler(service *services.OnboardingService, repo repository.Repository,
 }
 
 // StartOnboarding handles POST /mvno/onboarding
-func (h *Handler) StartOnboarding(c *gin.Context) {
-	var req monitor.OnboardingRequest
+func (h *MVNOHandler) StartOnboarding(c *gin.Context) {
+	var req mvno.OnboardingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.WithError(err).Error("Invalid onboarding request")
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -58,7 +64,7 @@ func (h *Handler) StartOnboarding(c *gin.Context) {
 }
 
 // GetMVNO handles GET /mvno/{id}
-func (h *Handler) GetMVNO(c *gin.Context) {
+func (h *MVNOHandler) GetMVNO(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "MVNO ID is required"})
@@ -76,13 +82,13 @@ func (h *Handler) GetMVNO(c *gin.Context) {
 }
 
 // ListMVNOs handles GET /mvno
-func (h *Handler) ListMVNOs(c *gin.Context) {
-	filter := &monitor.MVNOFilter{}
+func (h *MVNOHandler) ListMVNOs(c *gin.Context) {
+	filter := &mvno.MVNOFilter{}
 	if status := c.Query("status"); status != "" {
-		filter.Status = monitor.MVNOStatus(status)
+		filter.Status = mvno.MVNOStatus(status)
 	}
 	if plan := c.Query("plan"); plan != "" {
-		filter.Plan = monitor.MVNOPlan(plan)
+		filter.Plan = mvno.MVNOPlan(plan)
 	}
 	if limit := c.Query("limit"); limit != "" {
 		if l, err := strconv.Atoi(limit); err == nil {
@@ -101,7 +107,7 @@ func (h *Handler) ListMVNOs(c *gin.Context) {
 }
 
 // RegisterRoutes registers all MVNO routes
-func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
+func (h *MVNOHandler) RegisterRoutes(router *gin.RouterGroup) {
 	mvno := router.Group("/mvno")
 	{
 		mvno.POST("/onboarding", h.StartOnboarding)

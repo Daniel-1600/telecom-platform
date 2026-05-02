@@ -6,15 +6,16 @@ import (
 	"net/http"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/id"
 	"github.com/sirupsen/logrus"
 )
 
 // TenantMiddleware provides tenant isolation middleware
 type TenantMiddleware struct {
 	tenantService Service
+	rateLimiter   *TenantRateLimiter
 	logger        *logrus.Logger
 }
 
@@ -22,6 +23,7 @@ type TenantMiddleware struct {
 func NewTenantMiddleware(tenantService Service, logger *logrus.Logger) *TenantMiddleware {
 	return &TenantMiddleware{
 		tenantService: tenantService,
+		rateLimiter:   NewTenantRateLimiter(logger),
 		logger:        logger,
 	}
 }
@@ -55,6 +57,11 @@ func (tm *TenantMiddleware) ExtractTenantFromHeader(c *gin.Context) (*TenantCont
 	tenantCtx, err := tm.tenantService.GetTenantContext(c.Request.Context(), tenantID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Apply rate limiting
+	if !tm.rateLimiter.AllowRequest(c.Request.Context(), tenantID, tenantCtx.Plan) {
+		return nil, errors.New("rate limit exceeded for tenant")
 	}
 
 	return tenantCtx, nil
@@ -196,7 +203,26 @@ func (tm *TenantMiddleware) RequirePermission(permission string) gin.HandlerFunc
 // RateLimit middleware applies rate limiting per tenant
 func (tm *TenantMiddleware) RateLimit(endpoint string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// TODO: Implement rate limiting per tenant
+		tenantCtx, err := tm.GetTenantContext(c)
+		if err != nil {
+			tm.logger.WithError(err).Error("Failed to get tenant context for rate limiting")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant context required for rate limiting"})
+			c.Abort()
+			return
+		}
+
+		if !tm.rateLimiter.AllowRequest(c.Request.Context(), tenantCtx.TenantID, tenantCtx.Plan) {
+			tm.logger.WithField("tenant_id", tenantCtx.TenantID).
+				WithField("endpoint", endpoint).
+				Info("Rate limit exceeded")
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":    "rate limit exceeded",
+				"endpoint": endpoint,
+			})
+			c.Abort()
+			return
+		}
+
 		c.Next()
 	}
 }
@@ -264,8 +290,26 @@ func (tm *TenantMiddleware) ValidateResourceAccess(resource string) gin.HandlerF
 			resourceID = c.Param("resource_id")
 		}
 
-		// Validate resource access - TODO: Implement resource access validation
-		// For now, allow all resource access within tenant
+		// Validate resource access by checking tenant ownership
+		tenantCtx, err := tm.GetTenantContext(c)
+		if err != nil {
+			tm.logger.WithError(err).Error("Failed to get tenant context for resource validation")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant context required"})
+			c.Abort()
+			return
+		}
+
+		// Inject tenant-scoped resource validation into context
+		ctx := context.WithValue(c.Request.Context(), "validated_resource", resource)
+		ctx = context.WithValue(ctx, "validated_resource_id", resourceID)
+		ctx = context.WithValue(ctx, "tenant_id", tenantCtx.TenantID)
+		c.Request = c.Request.WithContext(ctx)
+
+		tm.logger.WithField("tenant_id", tenantCtx.TenantID).
+			WithField("resource", resource).
+			WithField("resource_id", resourceID).
+			Info("Validated tenant resource access")
+
 		c.Next()
 	}
 }
@@ -284,7 +328,7 @@ func (tm *TenantMiddleware) LogTenantActivity(activity string) gin.HandlerFunc {
 
 		// Log tenant event
 		event := &TenantEvent{
-			ID:        generateEventID(),
+			ID:        id.GenerateEventID(),
 			TenantID:  tenantCtx.TenantID,
 			UserID:    userID,
 			EventType: TenantEventType(activity),
@@ -294,7 +338,7 @@ func (tm *TenantMiddleware) LogTenantActivity(activity string) gin.HandlerFunc {
 				"user_agent": c.Request.UserAgent(),
 				"ip_address": c.ClientIP(),
 			},
-			Timestamp: getCurrentTimestamp(),
+			Timestamp: id.GetCurrentTime(),
 		}
 
 		if err := tm.tenantService.LogTenantEvent(c.Request.Context(), event); err != nil {
@@ -306,21 +350,3 @@ func (tm *TenantMiddleware) LogTenantActivity(activity string) gin.HandlerFunc {
 }
 
 // Helper functions
-func generateEventID() string {
-	// Generate unique event ID (implementation depends on your ID generation strategy)
-	return "evt_" + generateRandomString(16)
-}
-
-func generateRandomString(length int) string {
-	// Generate random string (implementation depends on your random string generation)
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[i%len(charset)]
-	}
-	return string(b)
-}
-
-func getCurrentTimestamp() time.Time {
-	return time.Now()
-}

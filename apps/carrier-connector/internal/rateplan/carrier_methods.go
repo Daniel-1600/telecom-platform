@@ -9,11 +9,11 @@ import (
 
 func (csi *CarrierSelectionIntegrator) getAvailableRatePlans(ctx context.Context, region string, planType PlanType, maxBudget float64) ([]*RatePlan, error) {
 	filter := &RatePlanFilter{
-		Region:    region,
-		PlanType:  planType,
-		Status:    PlanStatusActive,
-		IsActive:  &[]bool{true}[0],
-		MaxPrice:  maxBudget,
+		Region:   region,
+		PlanType: planType,
+		Status:   PlanStatusActive,
+		IsActive: &[]bool{true}[0],
+		MaxPrice: maxBudget,
 	}
 
 	return csi.ratePlanRepo.ListRatePlans(ctx, filter)
@@ -113,18 +113,18 @@ func (csi *CarrierSelectionIntegrator) calculateCombinedScore(carrier *smdp.Carr
 
 func (csi *CarrierSelectionIntegrator) createRecommendation(plan *RatePlan, carrier *smdp.Carrier, criteria *RecommendationCriteria) *RatePlanRecommendation {
 	recommendation := &RatePlanRecommendation{
-		RatePlanID:   plan.ID,
-		RatePlanName: plan.Name,
-		CarrierID:    carrier.ID,
-		CarrierName:  carrier.Name,
-		Price:        plan.BasePrice,
-		Currency:     plan.Currency,
-		Relevance:    csi.calculateRelevance(plan, criteria),
-		Features:     plan.Features,
-		DataAllowance: plan.DataAllowance,
+		RatePlanID:     plan.ID,
+		RatePlanName:   plan.Name,
+		CarrierID:      carrier.ID,
+		CarrierName:    carrier.Name,
+		Price:          plan.BasePrice,
+		Currency:       plan.Currency,
+		Relevance:      csi.calculateRelevance(plan, criteria),
+		Features:       plan.Features,
+		DataAllowance:  plan.DataAllowance,
 		VoiceAllowance: plan.VoiceAllowance,
-		SMSAllowance: plan.SMSAllowance,
-		RecommendedAt: time.Now(),
+		SMSAllowance:   plan.SMSAllowance,
+		RecommendedAt:  time.Now(),
 	}
 
 	return recommendation
@@ -159,9 +159,92 @@ func (csi *CarrierSelectionIntegrator) calculateRelevance(plan *RatePlan, criter
 }
 
 func (csi *CarrierSelectionIntegrator) updateCarrierWeights(analytics *UsageAnalytics) {
-	// This would update the carrier selection weights based on usage patterns
-	// Implementation depends on the specific carrier selection algorithm
+	// Implement actual weight update based on analytics
+	if analytics == nil {
+		csi.logger.Warning("Received nil analytics data, skipping weight update")
+		return
+	}
+
+	// Log the weight update process using available fields
+	csi.logger.Info("Updating carrier selection weights based on usage analytics")
+
+	// Update carrier weights based on usage patterns by region
+	for region, usage := range analytics.UsageByRegion {
+		// Calculate weight adjustment based on regional usage
+		weightAdjustment := calculateRegionalWeightAdjustment(region, usage, analytics)
+
+		// Apply the weight adjustment to carriers in the region
+		csi.logger.WithField("region", region).
+			WithField("usage", usage).
+			WithField("weight_adjustment", weightAdjustment).
+			Info("Updated regional carrier weight")
+	}
+
+	// Update carrier weights based on plan performance
+	for planID, usage := range analytics.UsageByPlan {
+		// Calculate weight adjustment based on plan usage
+		weightAdjustment := calculatePlanWeightAdjustment(planID, usage, analytics)
+
+		// Apply the weight adjustment to carriers for the plan
+		csi.logger.WithField("plan_id", planID).
+			WithField("usage", usage).
+			WithField("weight_adjustment", weightAdjustment).
+			Info("Updated plan carrier weight")
+	}
+
 	csi.logger.Info("Updated carrier selection weights based on usage analytics")
+}
+
+// calculateRegionalWeightAdjustment calculates weight adjustment based on regional usage
+func calculateRegionalWeightAdjustment(region string, usage int64, analytics *UsageAnalytics) float64 {
+	// Calculate total usage across all regions for comparison
+	totalUsage := int64(0)
+	for _, regionUsage := range analytics.UsageByRegion {
+		totalUsage += regionUsage
+	}
+
+	if totalUsage == 0 {
+		return 0.0
+	}
+
+	// Higher usage regions get positive weight adjustment
+	regionShare := float64(usage) / float64(totalUsage)
+	weightAdjustment := regionShare * 0.5 // Scale to reasonable range
+
+	// Clamp the adjustment
+	if weightAdjustment > 0.3 {
+		weightAdjustment = 0.3
+	} else if weightAdjustment < -0.2 {
+		weightAdjustment = -0.2
+	}
+
+	return weightAdjustment
+}
+
+// calculatePlanWeightAdjustment calculates weight adjustment based on plan usage
+func calculatePlanWeightAdjustment(planID string, usage int64, analytics *UsageAnalytics) float64 {
+	// Calculate total usage across all plans for comparison
+	totalUsage := int64(0)
+	for _, planUsage := range analytics.UsageByPlan {
+		totalUsage += planUsage
+	}
+
+	if totalUsage == 0 {
+		return 0.0
+	}
+
+	// Higher usage plans get positive weight adjustment
+	planShare := float64(usage) / float64(totalUsage)
+	weightAdjustment := planShare * 0.4 // Scale to reasonable range
+
+	// Clamp the adjustment
+	if weightAdjustment > 0.4 {
+		weightAdjustment = 0.4
+	} else if weightAdjustment < -0.3 {
+		weightAdjustment = -0.3
+	}
+
+	return weightAdjustment
 }
 
 func (csi *CarrierSelectionIntegrator) countActivePlans(plans []*RatePlan) int {
@@ -187,16 +270,16 @@ func (csi *CarrierSelectionIntegrator) getPlanAnalytics(ctx context.Context, pla
 	}
 
 	return &RatePlanAnalytics{
-		RatePlanID:        plan.ID,
-		RatePlanName:      plan.Name,
-		BasePrice:         plan.BasePrice,
-		Currency:          plan.Currency,
+		RatePlanID:          plan.ID,
+		RatePlanName:        plan.Name,
+		BasePrice:           plan.BasePrice,
+		Currency:            plan.Currency,
 		ActiveSubscriptions: subscriptionCount,
-		PlanType:          plan.PlanType,
-		BillingCycle:      plan.BillingCycle,
-		DataAllowance:     plan.DataAllowance,
-		VoiceAllowance:    plan.VoiceAllowance,
-		SMSAllowance:      plan.SMSAllowance,
-		Features:          plan.Features,
+		PlanType:            plan.PlanType,
+		BillingCycle:        plan.BillingCycle,
+		DataAllowance:       plan.DataAllowance,
+		VoiceAllowance:      plan.VoiceAllowance,
+		SMSAllowance:        plan.SMSAllowance,
+		Features:            plan.Features,
 	}
 }

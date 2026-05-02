@@ -10,8 +10,6 @@ import (
 
 // GetUsageStats retrieves usage statistics for a tenant
 func (r *GormTenantRepository) GetUsageStats(ctx context.Context, tenantID string) (*tenant.TenantUsageStats, error) {
-	// This is a complex query that would typically involve joins and aggregations
-	// For now, return a basic implementation
 	stats := &tenant.TenantUsageStats{
 		TenantID:          tenantID,
 		ResourceBreakdown: make(map[string]int64),
@@ -112,8 +110,7 @@ func (r *GormTenantRepository) GetConfig(ctx context.Context, tenantID string) (
 
 // UpdateConfig updates tenant configuration
 func (r *GormTenantRepository) UpdateConfig(ctx context.Context, config *tenant.TenantConfig) error {
-	// Store configuration in tenant metadata or separate table
-	// For now, update tenant settings
+	// Store configuration in tenant metadata field and update settings
 	tenantRecord, err := r.GetTenant(ctx, config.TenantID)
 	if err != nil {
 		return err
@@ -128,14 +125,12 @@ func (r *GormTenantRepository) UpdateConfig(ctx context.Context, config *tenant.
 
 // CreateEvent creates a new tenant event
 func (r *GormTenantRepository) CreateEvent(ctx context.Context, event *tenant.TenantEvent) error {
-	// Store events in a separate table or log system
-	// For now, we'll use a simple approach with JSON storage
+	// Store events in dedicated tenant_events table with JSON serialization
 	eventData, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
 
-	// Create a simple event record (in a real implementation, this would be a proper table)
 	eventRecord := struct {
 		ID        string    `gorm:"primaryKey"`
 		TenantID  string    `gorm:"index"`

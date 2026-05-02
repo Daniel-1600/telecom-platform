@@ -8,7 +8,6 @@ import (
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/tenant"
 )
 
-// GetTenantMetrics retrieves tenant metrics
 func (s *TenantServiceImpl) GetTenantMetrics(ctx context.Context, tenantID string) (*tenant.TenantMetrics, error) {
 	// Get usage stats
 	usageStats, err := s.GetUsageStats(ctx, tenantID)
@@ -24,11 +23,11 @@ func (s *TenantServiceImpl) GetTenantMetrics(ctx context.Context, tenantID strin
 
 	// Calculate metrics
 	metrics := &tenant.TenantMetrics{
-		TenantID:     tenantID,
-		ActiveUsers:  usageStats.ActiveUsers,
-		StorageUsed:  0, // Would be calculated from actual storage usage
-		HealthScore:  100.0,
-		Alerts:       []string{},
+		TenantID:    tenantID,
+		ActiveUsers: usageStats.ActiveUsers,
+		StorageUsed: 0, // Would be calculated from actual storage usage
+		HealthScore: 100.0,
+		Alerts:      []string{},
 	}
 
 	// Calculate last activity
@@ -76,7 +75,6 @@ func (s *TenantServiceImpl) GetTenantMetrics(ctx context.Context, tenantID strin
 	return metrics, nil
 }
 
-// GetTenantEvents retrieves tenant events
 func (s *TenantServiceImpl) GetTenantEvents(ctx context.Context, tenantID string, limit int) ([]*tenant.TenantEvent, error) {
 	events, err := s.repository.ListEvents(ctx, tenantID, limit)
 	if err != nil {
@@ -86,7 +84,6 @@ func (s *TenantServiceImpl) GetTenantEvents(ctx context.Context, tenantID string
 	return events, nil
 }
 
-// LogTenantEvent logs a tenant event
 func (s *TenantServiceImpl) LogTenantEvent(ctx context.Context, event *tenant.TenantEvent) error {
 	if err := s.repository.CreateEvent(ctx, event); err != nil {
 		return fmt.Errorf("failed to create tenant event: %w", err)
@@ -95,120 +92,173 @@ func (s *TenantServiceImpl) LogTenantEvent(ctx context.Context, event *tenant.Te
 	return nil
 }
 
-// GetTenantDashboard returns dashboard data for a tenant
 func (s *TenantServiceImpl) GetTenantDashboard(ctx context.Context, tenantID string) (*tenant.TenantDashboard, error) {
-	// TODO: Implement proper dashboard when type conversion issues are resolved
-	// For now, return a basic dashboard
+
+	usageStats, err := s.GetUsageStats(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get usage stats: %w", err)
+	}
+
+	metrics, err := s.GetTenantMetrics(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tenant metrics: %w", err)
+	}
+
+	recentEvents, err := s.repository.ListEvents(ctx, tenantID, 10)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent events: %w", err)
+	}
+
+	quotaStatus := s.buildQuotaStatus(usageStats)
+
 	dashboard := &tenant.TenantDashboard{
 		TenantID:     tenantID,
-		UsageStats:   nil,
-		Metrics:      nil,
-		RecentEvents: nil,
-		QuotaStatus:  nil,
+		UsageStats:   usageStats,
+		Metrics:      metrics,
+		RecentEvents: recentEvents,
+		QuotaStatus:  quotaStatus,
 		LastUpdated:  time.Now(),
 	}
 
 	return dashboard, nil
 }
 
-// GetUsageAnalytics returns detailed usage analytics for a tenant
-func (s *TenantServiceImpl) GetUsageAnalytics(ctx context.Context, tenantID string, timeRange string) (*tenant.TenantUsageAnalytics, error) {
-	// TODO: Implement proper usage analytics when type conversion issues are resolved
-	// For now, return basic analytics
-	startDate, endDate := s.parseTimeRange(timeRange)
-	
-	analytics := &tenant.TenantUsageAnalytics{
-		TenantID:    tenantID,
-		TimeRange:   timeRange,
-		StartDate:   startDate,
-		EndDate:     endDate,
-		UsageByType: make(map[string]*tenant.ResourceUsageAnalytics),
-		Trends:      make(map[string][]*tenant.UsageTrend),
-		Peaks:       make(map[string]*tenant.UsagePeak),
-	}
-
-	return analytics, nil
-}
-
-// GetPerformanceAnalytics returns performance analytics for a tenant
 func (s *TenantServiceImpl) GetPerformanceAnalytics(ctx context.Context, tenantID string, timeRange string) (*tenant.TenantPerformanceAnalytics, error) {
-	// TODO: Implement proper performance analytics when type conversion issues are resolved
-	// For now, return basic analytics
 	startDate, endDate := s.parseTimeRange(timeRange)
-	
+
+	events, err := s.repository.ListEvents(ctx, tenantID, 1000)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tenant events: %w", err)
+	}
+
+	apiRequests := s.parseAPIRequestEvents(events)
+
 	analytics := &tenant.TenantPerformanceAnalytics{
-		TenantID:           tenantID,
-		TimeRange:          timeRange,
-		StartDate:          startDate,
-		EndDate:            endDate,
-		APIPerformance:     &tenant.APIPerformance{},
-		ResourcePerformance: make(map[string]*tenant.ResourcePerformance),
-		Errors:             []*tenant.ErrorEvent{},
-		SlowQueries:        []*tenant.SlowQuery{},
+		TenantID:            tenantID,
+		TimeRange:           timeRange,
+		StartDate:           startDate,
+		EndDate:             endDate,
+		APIPerformance:      s.calculateAPIPerformance(apiRequests),
+		ResourcePerformance: s.buildResourcePerformance(ctx, tenantID, timeRange),
+		Errors:              s.parseErrorEvents(events),
+		SlowQueries:         s.parseSlowQueryEvents(events),
 	}
 
 	return analytics, nil
 }
 
-// Helper functions
-func (s *TenantServiceImpl) parseTimeRange(timeRange string) (time.Time, time.Time) {
-	now := time.Now()
+func (s *TenantServiceImpl) parseAPIRequestEvents(events []*tenant.TenantEvent) []*tenant.APIRequestEvent {
+	apiRequests := make([]*tenant.APIRequestEvent, 0)
 
+	for _, event := range events {
+		if event.EventType == "api_request" {
+			request := s.parseAPIRequestEvent(event)
+			apiRequests = append(apiRequests, request)
+		}
+	}
+
+	return apiRequests
+}
+
+func (s *TenantServiceImpl) buildResourcePerformance(ctx context.Context, tenantID, timeRange string) map[string]*tenant.ResourcePerformance {
+	resourcePerformance := make(map[string]*tenant.ResourcePerformance)
+
+	// Determine event limit based on time range
+	eventLimit := 100
 	switch timeRange {
 	case "1h":
-		return now.Add(-1 * time.Hour), now
+		eventLimit = 50
 	case "24h":
-		return now.Add(-24 * time.Hour), now
+		eventLimit = 200
 	case "7d":
-		return now.Add(-7 * 24 * time.Hour), now
+		eventLimit = 500
 	case "30d":
-		return now.Add(-30 * 24 * time.Hour), now
-	case "90d":
-		return now.Add(-90 * 24 * time.Hour), now
-	default:
-		return now.Add(-24 * time.Hour), now
+		eventLimit = 1000
 	}
+
+	// Retrieve actual tenant events for performance calculation
+	events, err := s.repository.ListEvents(ctx, tenantID, eventLimit)
+	if err != nil {
+		s.logger.WithError(err).Error("Failed to retrieve tenant events for performance analytics")
+		return resourcePerformance
+	}
+
+	// Aggregate performance metrics per resource type from events
+	type perfAccumulator struct {
+		totalResponseTime float64
+		totalRequests     int
+		errorCount        int
+	}
+	accumulators := make(map[string]*perfAccumulator)
+
+	for _, event := range events {
+		resourceType, _ := event.EventData["resource_type"].(string)
+		if resourceType == "" {
+			resourceType = string(event.EventType)
+		}
+
+		acc, exists := accumulators[resourceType]
+		if !exists {
+			acc = &perfAccumulator{}
+			accumulators[resourceType] = acc
+		}
+
+		acc.totalRequests++
+
+		if respTime, ok := event.EventData["response_time"].(float64); ok {
+			acc.totalResponseTime += respTime
+		}
+
+		if event.EventType == "error" || event.EventType == tenant.TenantEventQuotaExceeded {
+			acc.errorCount++
+		}
+	}
+
+	// Convert accumulators to ResourcePerformance
+	for resourceType, acc := range accumulators {
+		avgResponseTime := 0.0
+		if acc.totalRequests > 0 {
+			avgResponseTime = acc.totalResponseTime / float64(acc.totalRequests)
+		}
+
+		errorRate := 0.0
+		if acc.totalRequests > 0 {
+			errorRate = (float64(acc.errorCount) / float64(acc.totalRequests)) * 100
+		}
+
+		resourcePerformance[resourceType] = &tenant.ResourcePerformance{
+			ResourceType: resourceType,
+			ResponseTime: avgResponseTime,
+			Throughput:   float64(acc.totalRequests),
+			ErrorRate:    errorRate,
+		}
+	}
+
+	return resourcePerformance
 }
 
-func (s *TenantServiceImpl) parseAPIRequestEvent(event *tenant.TenantEvent) *tenant.APIRequestEvent {
-	// Implementation depends on event structure
-	return &tenant.APIRequestEvent{
-		Timestamp:    event.Timestamp,
-		Endpoint:     "",
-		Method:       "",
-		StatusCode:   200,
-		ResponseTime: 0,
-		UserID:       event.UserID,
+func (s *TenantServiceImpl) parseErrorEvents(events []*tenant.TenantEvent) []*tenant.ErrorEvent {
+	errorEvents := make([]*tenant.ErrorEvent, 0)
+
+	for _, event := range events {
+		if event.EventType == "error" {
+			errorEvent := s.parseErrorEvent(event)
+			errorEvents = append(errorEvents, errorEvent)
+		}
 	}
+
+	return errorEvents
 }
 
-func (s *TenantServiceImpl) parseErrorEvent(event *tenant.TenantEvent) *tenant.ErrorEvent {
-	// Implementation depends on event structure
-	return &tenant.ErrorEvent{
-		Timestamp: event.Timestamp,
-		Error:     "",
-		Context:   event.EventData,
-		UserID:    event.UserID,
-	}
-}
+func (s *TenantServiceImpl) parseSlowQueryEvents(events []*tenant.TenantEvent) []*tenant.SlowQuery {
+	slowQueries := make([]*tenant.SlowQuery, 0)
 
-func (s *TenantServiceImpl) parseSlowQueryEvent(event *tenant.TenantEvent) *tenant.SlowQuery {
-	// Implementation depends on event structure
-	return &tenant.SlowQuery{
-		Timestamp: event.Timestamp,
-		Query:     "",
-		Duration:  0,
-		Context:   event.EventData,
+	for _, event := range events {
+		if event.EventType == "slow_query" {
+			slowQuery := s.parseSlowQueryEvent(event)
+			slowQueries = append(slowQueries, slowQuery)
+		}
 	}
-}
 
-func (s *TenantServiceImpl) calculateAPIPerformance(requests []*tenant.APIRequestEvent) *tenant.APIPerformance {
-	// Implementation would calculate performance metrics
-	return &tenant.APIPerformance{
-		TotalRequests:       len(requests),
-		AverageResponseTime: 0,
-		P95ResponseTime:     0,
-		ErrorRate:           0,
-		RequestsPerSecond:   0,
-	}
+	return slowQueries
 }

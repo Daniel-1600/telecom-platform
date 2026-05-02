@@ -19,26 +19,26 @@ type TenantFilter struct {
 
 // CreateTenantRequest represents a request to create a new tenant
 type CreateTenantRequest struct {
-	Name        string                 `json:"name" binding:"required"`
-	Domain      string                 `json:"domain" binding:"required"`
-	Plan        TenantPlan             `json:"plan" binding:"required"`
-	MaxUsers    int                    `json:"max_users"`
-	MaxProfiles int                    `json:"max_profiles"`
-	MaxCarriers int                    `json:"max_carriers"`
-	Settings    *TenantSettings        `json:"settings,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Name        string          `json:"name" binding:"required"`
+	Domain      string          `json:"domain" binding:"required"`
+	Plan        TenantPlan      `json:"plan" binding:"required"`
+	MaxUsers    int             `json:"max_users"`
+	MaxProfiles int             `json:"max_profiles"`
+	MaxCarriers int             `json:"max_carriers"`
+	Settings    *TenantSettings `json:"settings,omitempty"`
+	Metadata    map[string]any  `json:"metadata,omitempty"`
 }
 
 // UpdateTenantRequest represents a request to update a tenant
 type UpdateTenantRequest struct {
-	Name        *string                `json:"name,omitempty"`
-	Status      *TenantStatus          `json:"status,omitempty"`
-	Plan        *TenantPlan            `json:"plan,omitempty"`
-	MaxUsers    *int                   `json:"max_users,omitempty"`
-	MaxProfiles *int                   `json:"max_profiles,omitempty"`
-	MaxCarriers *int                   `json:"max_carriers,omitempty"`
-	Settings    *TenantSettings        `json:"settings,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Name        *string         `json:"name,omitempty"`
+	Status      *TenantStatus   `json:"status,omitempty"`
+	Plan        *TenantPlan     `json:"plan,omitempty"`
+	MaxUsers    *int            `json:"max_users,omitempty"`
+	MaxProfiles *int            `json:"max_profiles,omitempty"`
+	MaxCarriers *int            `json:"max_carriers,omitempty"`
+	Settings    *TenantSettings `json:"settings,omitempty"`
+	Metadata    map[string]any  `json:"metadata,omitempty"`
 }
 
 // TenantUserFilter defines filtering options for tenant user queries
@@ -87,8 +87,8 @@ type UpdateAPIKeyRequest struct {
 type TenantUsageFilter struct {
 	TenantID     string    `json:"tenant_id,omitempty"`
 	ResourceType string    `json:"resource_type,omitempty"`
-	PeriodStart  time.Time `json:"period_start,omitempty"`
-	PeriodEnd    time.Time `json:"period_end,omitempty"`
+	PeriodStart  time.Time `json:"period_start"`
+	PeriodEnd    time.Time `json:"period_end"`
 	Limit        int       `json:"limit,omitempty"`
 	Offset       int       `json:"offset,omitempty"`
 }
@@ -121,13 +121,13 @@ type QuotaStatus struct {
 
 // TenantContext represents tenant context for request processing
 type TenantContext struct {
-	TenantID   string                 `json:"tenant_id"`
-	TenantName string                 `json:"tenant_name"`
-	Plan       TenantPlan             `json:"plan"`
-	UserID     string                 `json:"user_id"`
-	UserRole   TenantRole             `json:"user_role"`
-	Settings   *TenantSettings        `json:"settings"`
-	Metadata   map[string]interface{} `json:"metadata"`
+	TenantID   string          `json:"tenant_id"`
+	TenantName string          `json:"tenant_name"`
+	Plan       TenantPlan      `json:"plan"`
+	UserID     string          `json:"user_id"`
+	UserRole   TenantRole      `json:"user_role"`
+	Settings   *TenantSettings `json:"settings"`
+	Metadata   map[string]any  `json:"metadata"`
 }
 
 // ResourceQuota represents resource quota configuration
@@ -148,23 +148,23 @@ type ResourceUsage struct {
 
 // TenantConfig represents tenant-specific configuration
 type TenantConfig struct {
-	TenantID string                 `json:"tenant_id"`
-	Config   map[string]interface{} `json:"config"`
-	Settings *TenantSettings        `json:"settings"`
-	Quotas   []ResourceQuota        `json:"quotas"`
-	Features map[string]bool        `json:"features"`
+	TenantID string          `json:"tenant_id"`
+	Config   map[string]any  `json:"config"`
+	Settings *TenantSettings `json:"settings"`
+	Quotas   []ResourceQuota `json:"quotas"`
+	Features map[string]bool `json:"features"`
 }
 
 // TenantEvent represents events related to a tenant
 type TenantEvent struct {
-	ID        string                 `json:"id"`
-	TenantID  string                 `json:"tenant_id"`
-	UserID    string                 `json:"user_id"`
-	EventType TenantEventType        `json:"event_type"`
-	EventData map[string]interface{} `json:"event_data"`
-	Timestamp time.Time              `json:"timestamp"`
-	IPAddress string                 `json:"ip_address"`
-	UserAgent string                 `json:"user_agent"`
+	ID        string          `json:"id"`
+	TenantID  string          `json:"tenant_id"`
+	UserID    string          `json:"user_id"`
+	EventType TenantEventType `json:"event_type"`
+	EventData map[string]any  `json:"event_data"`
+	Timestamp time.Time       `json:"timestamp"`
+	IPAddress string          `json:"ip_address"`
+	UserAgent string          `json:"user_agent"`
 }
 
 // TenantEventType represents types of tenant events
@@ -236,9 +236,9 @@ type UsageTrend struct {
 
 // UsagePeak represents a usage peak
 type UsagePeak struct {
-	Timestamp time.Time              `json:"timestamp"`
-	Usage     int                    `json:"usage"`
-	Context   map[string]interface{} `json:"context"`
+	Timestamp time.Time      `json:"timestamp"`
+	Usage     int            `json:"usage"`
+	Context   map[string]any `json:"context"`
 }
 
 // TenantPerformanceAnalytics represents performance analytics
@@ -282,16 +282,16 @@ type APIRequestEvent struct {
 
 // ErrorEvent represents an error event
 type ErrorEvent struct {
-	Timestamp time.Time              `json:"timestamp"`
-	Error     string                 `json:"error"`
-	Context   map[string]interface{} `json:"context"`
-	UserID    string                 `json:"user_id"`
+	Timestamp time.Time      `json:"timestamp"`
+	Error     string         `json:"error"`
+	Context   map[string]any `json:"context"`
+	UserID    string         `json:"user_id"`
 }
 
 // SlowQuery represents a slow query event
 type SlowQuery struct {
-	Timestamp time.Time              `json:"timestamp"`
-	Query     string                 `json:"query"`
-	Duration  time.Duration          `json:"duration"`
-	Context   map[string]interface{} `json:"context"`
+	Timestamp time.Time      `json:"timestamp"`
+	Query     string         `json:"query"`
+	Duration  time.Duration  `json:"duration"`
+	Context   map[string]any `json:"context"`
 }

@@ -54,7 +54,7 @@ func (r *TenantAwareRepository) ValidateTenant(ctx context.Context) error {
 }
 
 // TenantScopedQuery creates a query scoped to the current tenant
-func (r *TenantAwareRepository) TenantScopedQuery(ctx context.Context, model interface{}) *gorm.DB {
+func (r *TenantAwareRepository) TenantScopedQuery(ctx context.Context, model any) *gorm.DB {
 	query := r.db.WithContext(ctx).Model(model)
 	if r.tenantID != "" {
 		query = query.Where("tenant_id = ?", r.tenantID)

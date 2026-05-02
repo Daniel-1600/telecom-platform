@@ -178,7 +178,7 @@ func (s *TenantServiceImpl) ResetTenantConfig(ctx context.Context, tenantID stri
 func (s *TenantServiceImpl) convertTenantConfig(tenantID string, settings *tenant.TenantSettings, plan tenant.TenantPlan) *tenant.TenantConfig {
 	return &tenant.TenantConfig{
 		TenantID: tenantID,
-		Config:   make(map[string]interface{}),
+		Config:   make(map[string]any),
 		Settings: settings,
 		Quotas:   s.getDefaultQuotas(plan),
 		Features: s.getDefaultFeatures(plan),

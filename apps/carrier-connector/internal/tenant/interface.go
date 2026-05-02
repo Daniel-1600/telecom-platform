@@ -98,7 +98,7 @@ type Service interface {
 // Middleware defines the interface for tenant middleware
 type Middleware interface {
 	// Request middleware
-	ExtractTenantFromRequest(ctx context.Context, request interface{}) (*TenantContext, error)
+	ExtractTenantFromRequest(ctx context.Context, request any) (*TenantContext, error)
 	ValidateTenantAccess(ctx context.Context, tenantCtx *TenantContext) error
 	InjectTenantContext(ctx context.Context, tenantCtx *TenantContext) context.Context
 
@@ -140,15 +140,15 @@ type ResourceManager interface {
 type ConfigManager interface {
 	GetConfig(ctx context.Context, tenantID string) (*TenantConfig, error)
 	SetConfig(ctx context.Context, tenantID string, config *TenantConfig) error
-	UpdateConfig(ctx context.Context, tenantID string, updates map[string]interface{}) error
-	GetSetting(ctx context.Context, tenantID, key string) (interface{}, error)
-	SetSetting(ctx context.Context, tenantID, key string, value interface{}) error
+	UpdateConfig(ctx context.Context, tenantID string, updates map[string]any) error
+	GetSetting(ctx context.Context, tenantID, key string) (any, error)
+	SetSetting(ctx context.Context, tenantID, key string, value any) error
 	DeleteSetting(ctx context.Context, tenantID, key string) error
 }
 
 // AuditLogger defines the interface for tenant audit logging
 type AuditLogger interface {
-	LogTenantAction(ctx context.Context, tenantID, userID, action string, details map[string]interface{}) error
+	LogTenantAction(ctx context.Context, tenantID, userID, action string, details map[string]any) error
 	LogAPIAccess(ctx context.Context, tenantID, userID, apiKey, endpoint, method string) error
 	LogResourceAccess(ctx context.Context, tenantID, userID, resource, resourceID, action string) error
 	LogQuotaViolation(ctx context.Context, tenantID, resourceType string, usage, limit int) error

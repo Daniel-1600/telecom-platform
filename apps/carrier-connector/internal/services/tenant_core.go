@@ -74,7 +74,7 @@ func (s *TenantServiceImpl) CreateTenant(ctx context.Context, req *tenant.Create
 	// Create initial configuration
 	config := &tenant.TenantConfig{
 		TenantID: newTenant.ID,
-		Config:   make(map[string]interface{}),
+		Config:   make(map[string]any),
 		Settings: newTenant.Settings,
 		Quotas:   s.getDefaultQuotas(req.Plan),
 		Features: s.getDefaultFeatures(req.Plan),

@@ -8,7 +8,7 @@ import (
 )
 
 // TenantAwareQuery adds tenant filtering to database queries
-func (r *GormTenantRepository) TenantAwareQuery(ctx context.Context, model interface{}, tenantID string) *gorm.DB {
+func (r *GormTenantRepository) TenantAwareQuery(ctx context.Context, model any, tenantID string) *gorm.DB {
 	query := r.db.WithContext(ctx).Model(model)
 
 	// Add tenant filter if the model has tenant_id field

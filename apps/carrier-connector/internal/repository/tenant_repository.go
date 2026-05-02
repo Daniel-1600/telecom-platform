@@ -48,7 +48,7 @@ func (r *GormTenantRepository) GetConfig(ctx context.Context, tenantID string) (
 	// Create basic config
 	config := &tenant.TenantConfig{
 		TenantID: tenantID,
-		Config:   make(map[string]interface{}),
+		Config:   make(map[string]any),
 		Settings: tenantRecord.Settings,
 		Quotas:   []tenant.ResourceQuota{},
 		Features: make(map[string]bool),

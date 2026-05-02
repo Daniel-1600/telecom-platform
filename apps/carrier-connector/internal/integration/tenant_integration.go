@@ -234,7 +234,7 @@ func (l *TenantEventLogger) LogResourceAccess(ctx context.Context, tenantID, use
 		TenantID:  tenantID,
 		UserID:    userID,
 		EventType: tenant.TenantEventType("resource_access"),
-		EventData: map[string]interface{}{
+		EventData: map[string]any{
 			"resource_type": resourceType,
 			"resource_id":   resourceID,
 			"action":        action,
@@ -254,7 +254,7 @@ func (l *TenantEventLogger) LogQuotaViolation(ctx context.Context, tenantID, res
 		TenantID:  tenantID,
 		UserID:    "",
 		EventType: tenant.TenantEventQuotaExceeded,
-		EventData: map[string]interface{}{
+		EventData: map[string]any{
 			"resource_type": resourceType,
 			"usage":         usage,
 			"limit":         limit,

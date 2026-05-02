@@ -39,7 +39,7 @@ func (rpci *RatePlanCurrencyIntegrator) GetPlansInCurrency(ctx context.Context, 
 
 			// Store original price and update with converted price
 			if plan.Metadata == nil {
-				plan.Metadata = make(map[string]interface{})
+				plan.Metadata = make(map[string]any)
 			}
 			plan.Metadata["original_price"] = plan.BasePrice
 			plan.Metadata["original_currency"] = plan.Currency
@@ -81,9 +81,9 @@ func (rpci *RatePlanCurrencyIntegrator) UpdatePlanCurrency(ctx context.Context, 
 
 	// Store conversion information in metadata
 	if plan.Metadata == nil {
-		plan.Metadata = make(map[string]interface{})
+		plan.Metadata = make(map[string]any)
 	}
-	plan.Metadata["currency_conversion"] = map[string]interface{}{
+	plan.Metadata["currency_conversion"] = map[string]any{
 		"from_currency": plan.Metadata["original_currency"],
 		"to_currency":   newCurrency,
 		"exchange_rate": convertedPrice.ExchangeRate,

@@ -6,19 +6,19 @@ import (
 
 // Tenant represents a multi-tenant organization
 type Tenant struct {
-	ID          string                 `json:"id" gorm:"primaryKey;column:id"`
-	Name        string                 `json:"name" gorm:"column:name;not null"`
-	Domain      string                 `json:"domain" gorm:"column:domain;uniqueIndex"`
-	Status      TenantStatus           `json:"status" gorm:"column:status;not null"`
-	Plan        TenantPlan             `json:"plan" gorm:"column:plan;not null"`
-	MaxUsers    int                    `json:"max_users" gorm:"column:max_users"`
-	MaxProfiles int                    `json:"max_profiles" gorm:"column:max_profiles"`
-	MaxCarriers int                    `json:"max_carriers" gorm:"column:max_carriers"`
-	Settings    *TenantSettings        `json:"settings" gorm:"column:settings;serializer:json"`
-	Metadata    map[string]interface{} `json:"metadata" gorm:"column:metadata;serializer:json"`
-	CreatedAt   time.Time              `json:"created_at" gorm:"column:created_at"`
-	UpdatedAt   time.Time              `json:"updated_at" gorm:"column:updated_at"`
-	DeletedAt   *time.Time             `json:"deleted_at,omitempty" gorm:"column:deleted_at"`
+	ID          string          `json:"id" gorm:"primaryKey;column:id"`
+	Name        string          `json:"name" gorm:"column:name;not null"`
+	Domain      string          `json:"domain" gorm:"column:domain;uniqueIndex"`
+	Status      TenantStatus    `json:"status" gorm:"column:status;not null"`
+	Plan        TenantPlan      `json:"plan" gorm:"column:plan;not null"`
+	MaxUsers    int             `json:"max_users" gorm:"column:max_users"`
+	MaxProfiles int             `json:"max_profiles" gorm:"column:max_profiles"`
+	MaxCarriers int             `json:"max_carriers" gorm:"column:max_carriers"`
+	Settings    *TenantSettings `json:"settings" gorm:"column:settings;serializer:json"`
+	Metadata    map[string]any  `json:"metadata" gorm:"column:metadata;serializer:json"`
+	CreatedAt   time.Time       `json:"created_at" gorm:"column:created_at"`
+	UpdatedAt   time.Time       `json:"updated_at" gorm:"column:updated_at"`
+	DeletedAt   *time.Time      `json:"deleted_at,omitempty" gorm:"column:deleted_at"`
 }
 
 // TableName returns the table name for Tenant

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -65,8 +66,8 @@ func (tm *TenantMiddleware) ExtractTenantFromAPIKey(c *gin.Context) (*TenantCont
 	if apiKey == "" {
 		// Try Authorization header with Bearer token
 		authHeader := c.GetHeader("Authorization")
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			apiKey = strings.TrimPrefix(authHeader, "Bearer ")
+		if after, ok := strings.CutPrefix(authHeader, "Bearer "); ok {
+			apiKey = after
 		}
 	}
 
@@ -133,13 +134,7 @@ func (tm *TenantMiddleware) RequireTenantRole(requiredRoles ...TenantRole) gin.H
 		}
 
 		// Check if user has required role
-		hasRole := false
-		for _, requiredRole := range requiredRoles {
-			if tenantCtx.UserRole == requiredRole {
-				hasRole = true
-				break
-			}
-		}
+		hasRole := slices.Contains(requiredRoles, tenantCtx.UserRole)
 
 		if !hasRole {
 			tm.logger.WithFields(logrus.Fields{
@@ -293,7 +288,7 @@ func (tm *TenantMiddleware) LogTenantActivity(activity string) gin.HandlerFunc {
 			TenantID:  tenantCtx.TenantID,
 			UserID:    userID,
 			EventType: TenantEventType(activity),
-			EventData: map[string]interface{}{
+			EventData: map[string]any{
 				"method":     c.Request.Method,
 				"path":       c.Request.URL.Path,
 				"user_agent": c.Request.UserAgent(),

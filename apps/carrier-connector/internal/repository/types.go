@@ -99,20 +99,20 @@ func (RatePlanUsage) TableName() string {
 
 // RatePlanSubscription represents a subscription to a rate plan
 type RatePlanSubscription struct {
-	ID               string                 `json:"id" gorm:"primaryKey"`
-	ProfileID        string                 `json:"profile_id" gorm:"index"`
-	RatePlanID       string                 `json:"rate_plan_id" gorm:"index"`
-	Status           SubscriptionStatus     `json:"status" gorm:"index"`
-	StartedAt        time.Time              `json:"started_at"`
-	EndedAt          *time.Time             `json:"ended_at,omitempty"`
-	BillingCycle     BillingCycle           `json:"billing_cycle"`
-	NextBillingDate  time.Time              `json:"next_billing_date"`
-	AutoRenew        bool                   `json:"auto_renew"`
-	CurrentCycle     time.Time              `json:"current_cycle"`
-	AppliedDiscounts []string               `json:"applied_discounts,omitempty" gorm:"serializer:json"`
-	Metadata         map[string]interface{} `json:"metadata,omitempty" gorm:"serializer:json"`
-	CreatedAt        time.Time              `json:"created_at"`
-	UpdatedAt        time.Time              `json:"updated_at"`
+	ID               string             `json:"id" gorm:"primaryKey"`
+	ProfileID        string             `json:"profile_id" gorm:"index"`
+	RatePlanID       string             `json:"rate_plan_id" gorm:"index"`
+	Status           SubscriptionStatus `json:"status" gorm:"index"`
+	StartedAt        time.Time          `json:"started_at"`
+	EndedAt          *time.Time         `json:"ended_at,omitempty"`
+	BillingCycle     BillingCycle       `json:"billing_cycle"`
+	NextBillingDate  time.Time          `json:"next_billing_date"`
+	AutoRenew        bool               `json:"auto_renew"`
+	CurrentCycle     time.Time          `json:"current_cycle"`
+	AppliedDiscounts []string           `json:"applied_discounts,omitempty" gorm:"serializer:json"`
+	Metadata         map[string]any     `json:"metadata,omitempty" gorm:"serializer:json"`
+	CreatedAt        time.Time          `json:"created_at"`
+	UpdatedAt        time.Time          `json:"updated_at"`
 }
 
 // TableName returns the table name for RatePlanSubscription
@@ -153,27 +153,27 @@ type SubscriptionFilter struct {
 
 // RatePlan represents a rate plan
 type RatePlan struct {
-	ID             string                 `json:"id" gorm:"primaryKey"`
-	Name           string                 `json:"name"`
-	Description    string                 `json:"description"`
-	CarrierID      string                 `json:"carrier_id" gorm:"index"`
-	Region         string                 `json:"region" gorm:"index"`
-	PlanType       PlanType               `json:"plan_type"`
-	BasePrice      float64                `json:"base_price"`
-	Currency       string                 `json:"currency"`
-	BillingCycle   BillingCycle           `json:"billing_cycle"`
-	DataAllowance  *DataAllowance         `json:"data_allowance,omitempty" gorm:"serializer:json"`
-	VoiceAllowance *VoiceAllowance        `json:"voice_allowance,omitempty" gorm:"serializer:json"`
-	SMSAllowance   *SMSAllowance          `json:"sms_allowance,omitempty" gorm:"serializer:json"`
-	OverageRates   *OverageRates          `json:"overage_rates,omitempty" gorm:"serializer:json"`
-	Discounts      []*Discount            `json:"discounts,omitempty" gorm:"serializer:json"`
-	ValidFrom      time.Time              `json:"valid_from"`
-	ValidTo        *time.Time             `json:"valid_to,omitempty"`
-	IsActive       bool                   `json:"is_active"`
-	Status         PlanStatus             `json:"status"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty" gorm:"serializer:json"`
-	CreatedAt      time.Time              `json:"created_at"`
-	UpdatedAt      time.Time              `json:"updated_at"`
+	ID             string          `json:"id" gorm:"primaryKey"`
+	Name           string          `json:"name"`
+	Description    string          `json:"description"`
+	CarrierID      string          `json:"carrier_id" gorm:"index"`
+	Region         string          `json:"region" gorm:"index"`
+	PlanType       PlanType        `json:"plan_type"`
+	BasePrice      float64         `json:"base_price"`
+	Currency       string          `json:"currency"`
+	BillingCycle   BillingCycle    `json:"billing_cycle"`
+	DataAllowance  *DataAllowance  `json:"data_allowance,omitempty" gorm:"serializer:json"`
+	VoiceAllowance *VoiceAllowance `json:"voice_allowance,omitempty" gorm:"serializer:json"`
+	SMSAllowance   *SMSAllowance   `json:"sms_allowance,omitempty" gorm:"serializer:json"`
+	OverageRates   *OverageRates   `json:"overage_rates,omitempty" gorm:"serializer:json"`
+	Discounts      []*Discount     `json:"discounts,omitempty" gorm:"serializer:json"`
+	ValidFrom      time.Time       `json:"valid_from"`
+	ValidTo        *time.Time      `json:"valid_to,omitempty"`
+	IsActive       bool            `json:"is_active"`
+	Status         PlanStatus      `json:"status"`
+	Metadata       map[string]any  `json:"metadata,omitempty" gorm:"serializer:json"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
 // TableName returns the table name for RatePlan
@@ -323,11 +323,11 @@ type SearchCriteria struct {
 
 // SubscribeRequest represents a request to subscribe to a rate plan
 type SubscribeRequest struct {
-	ProfileID        string                 `json:"profile_id"`
-	RatePlanID       string                 `json:"rate_plan_id"`
-	AutoRenew        bool                   `json:"auto_renew"`
-	AppliedDiscounts []string               `json:"applied_discounts,omitempty"`
-	Metadata         map[string]interface{} `json:"metadata,omitempty"`
+	ProfileID        string         `json:"profile_id"`
+	RatePlanID       string         `json:"rate_plan_id"`
+	AutoRenew        bool           `json:"auto_renew"`
+	AppliedDiscounts []string       `json:"applied_discounts,omitempty"`
+	Metadata         map[string]any `json:"metadata,omitempty"`
 }
 
 // RecordUsageRequest represents a request to record usage
@@ -349,12 +349,12 @@ type CalculateCostRequest struct {
 
 // RatePlanCostCalculation represents the result of a cost calculation
 type RatePlanCostCalculation struct {
-	RatePlanID   string                 `json:"rate_plan_id"`
-	BaseCost     float64                `json:"base_cost"`
-	OverageCost  float64                `json:"overage_cost"`
-	DiscountCost float64                `json:"discount_cost"`
-	TotalCost    float64                `json:"total_cost"`
-	Currency     string                 `json:"currency"`
-	Breakdown    map[string]interface{} `json:"breakdown"`
-	CalculatedAt time.Time              `json:"calculated_at"`
+	RatePlanID   string         `json:"rate_plan_id"`
+	BaseCost     float64        `json:"base_cost"`
+	OverageCost  float64        `json:"overage_cost"`
+	DiscountCost float64        `json:"discount_cost"`
+	TotalCost    float64        `json:"total_cost"`
+	Currency     string         `json:"currency"`
+	Breakdown    map[string]any `json:"breakdown"`
+	CalculatedAt time.Time      `json:"calculated_at"`
 }

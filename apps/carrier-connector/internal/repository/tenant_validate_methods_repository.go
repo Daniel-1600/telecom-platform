@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func (r *TenantAwareRepository) CreateWithTenant(ctx context.Context, model interface{}) error {
+func (r *TenantAwareRepository) CreateWithTenant(ctx context.Context, model any) error {
 	if err := r.ValidateTenant(ctx); err != nil {
 		return err
 	}
@@ -21,7 +21,7 @@ func (r *TenantAwareRepository) CreateWithTenant(ctx context.Context, model inte
 	return r.db.WithContext(ctx).Create(model).Error
 }
 
-func (r *TenantAwareRepository) GetByTenantID(ctx context.Context, model interface{}, id string) error {
+func (r *TenantAwareRepository) GetByTenantID(ctx context.Context, model any, id string) error {
 	if err := r.ValidateTenant(ctx); err != nil {
 		return err
 	}
@@ -29,7 +29,7 @@ func (r *TenantAwareRepository) GetByTenantID(ctx context.Context, model interfa
 	return r.TenantScopedQuery(ctx, model).Where("id = ?", id).First(model).Error
 }
 
-func (r *TenantAwareRepository) UpdateWithTenant(ctx context.Context, model interface{}) error {
+func (r *TenantAwareRepository) UpdateWithTenant(ctx context.Context, model any) error {
 	if err := r.ValidateTenant(ctx); err != nil {
 		return err
 	}
@@ -37,7 +37,7 @@ func (r *TenantAwareRepository) UpdateWithTenant(ctx context.Context, model inte
 	return r.db.WithContext(ctx).Save(model).Error
 }
 
-func (r *TenantAwareRepository) DeleteWithTenant(ctx context.Context, model interface{}, id string) error {
+func (r *TenantAwareRepository) DeleteWithTenant(ctx context.Context, model any, id string) error {
 	if err := r.ValidateTenant(ctx); err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func (r *TenantAwareRepository) DeleteWithTenant(ctx context.Context, model inte
 	return r.TenantScopedQuery(ctx, model).Where("id = ?", id).Delete(model).Error
 }
 
-func (r *TenantAwareRepository) ListWithTenant(ctx context.Context, model interface{}, results interface{}, filters map[string]interface{}) error {
+func (r *TenantAwareRepository) ListWithTenant(ctx context.Context, model any, results any, filters map[string]any) error {
 	if err := r.ValidateTenant(ctx); err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func (r *TenantAwareRepository) ListWithTenant(ctx context.Context, model interf
 	return query.Find(results).Error
 }
 
-func (r *TenantAwareRepository) CountWithTenant(ctx context.Context, model interface{}, filters map[string]interface{}) (int64, error) {
+func (r *TenantAwareRepository) CountWithTenant(ctx context.Context, model any, filters map[string]any) (int64, error) {
 	if err := r.ValidateTenant(ctx); err != nil {
 		return 0, err
 	}
@@ -145,7 +145,7 @@ func NewTenantQueryBuilder(db *gorm.DB, tenantID string) *TenantQueryBuilder {
 	}
 }
 
-func (b *TenantQueryBuilder) Where(query string, args ...interface{}) *TenantQueryBuilder {
+func (b *TenantQueryBuilder) Where(query string, args ...any) *TenantQueryBuilder {
 	b.query = b.query.Where(query, args...)
 	return b
 }
@@ -165,11 +165,11 @@ func (b *TenantQueryBuilder) Offset(offset int) *TenantQueryBuilder {
 	return b
 }
 
-func (b *TenantQueryBuilder) Find(dest interface{}) error {
+func (b *TenantQueryBuilder) Find(dest any) error {
 	return b.query.Find(dest).Error
 }
 
-func (b *TenantQueryBuilder) First(dest interface{}) error {
+func (b *TenantQueryBuilder) First(dest any) error {
 	return b.query.First(dest).Error
 }
 

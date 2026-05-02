@@ -64,7 +64,7 @@ func (rpci *RatePlanCurrencyIntegrator) SubscribeToPlanWithCurrency(ctx context.
 		RatePlanID: planID,
 		Status:     rateplan.SubscriptionStatusActive,
 		StartedAt:  time.Now(),
-		Metadata: map[string]interface{}{
+		Metadata: map[string]any{
 			"original_currency":     plan.Currency,
 			"subscription_currency": targetCurrency,
 			"original_price":        plan.BasePrice,
@@ -155,7 +155,7 @@ func (rpci *RatePlanCurrencyIntegrator) CalculatePlanCostInCurrency(ctx context.
 		TransactionCount: 1,
 		FromDate:         time.Now().AddDate(0, -1, 0),
 		ToDate:           time.Now(),
-		Breakdown: map[string]interface{}{
+		Breakdown: map[string]any{
 			"plan_id":           planID,
 			"plan_name":         plan.Name,
 			"base_cost":         plan.BasePrice,

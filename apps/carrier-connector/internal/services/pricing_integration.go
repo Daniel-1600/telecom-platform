@@ -227,7 +227,7 @@ type PricingEffectiveness struct {
 	TotalSavings          float64        `json:"total_savings"`
 	RulesByType           map[string]int `json:"rules_by_type"`
 	ConversionImprovement float64        `json:"conversion_improvement"`
-	GeneratedAt           interface{}    `json:"generated_at"`
+	GeneratedAt           any            `json:"generated_at"`
 }
 
 type RatePlanPricingAnalytics struct {

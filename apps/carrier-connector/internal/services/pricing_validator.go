@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/pricing"
 )
@@ -121,17 +122,13 @@ func (v *PricingValidator) ValidateConditions(ctx context.Context, conditions pr
 	}
 
 	// Validate geography
-	for _, geo := range conditions.Geography {
-		if geo == "" {
-			return errors.New("geography cannot be empty")
-		}
+	if slices.Contains(conditions.Geography, "") {
+		return errors.New("geography cannot be empty")
 	}
 
 	// Validate customer type
-	for _, ct := range conditions.CustomerType {
-		if ct == "" {
-			return errors.New("customer type cannot be empty")
-		}
+	if slices.Contains(conditions.CustomerType, "") {
+		return errors.New("customer type cannot be empty")
 	}
 
 	// Validate volume range

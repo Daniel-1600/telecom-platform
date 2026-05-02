@@ -109,7 +109,7 @@ func (r *GormCarrierRepository) SaveCarrier(ctx context.Context, carrier *smdp.C
 // UpdateCarrierMetrics updates carrier metrics
 func (r *GormCarrierRepository) UpdateCarrierMetrics(ctx context.Context, id string, metrics *smdp.CarrierMetrics) error {
 	// Persist metrics alongside the carrier record
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"updated_at": time.Now(),
 	}
 

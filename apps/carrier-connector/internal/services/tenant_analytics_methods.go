@@ -95,7 +95,7 @@ func (s *TenantServiceImpl) calculateAPIPerformance(requests []*tenant.APIReques
 	copy(sortedResponseTimes, responseTimes)
 
 	// Sort response times
-	for i := 0; i < len(sortedResponseTimes); i++ {
+	for i := range sortedResponseTimes {
 		for j := 0; j < len(sortedResponseTimes)-1-i; j++ {
 			if sortedResponseTimes[j] > sortedResponseTimes[j+1] {
 				sortedResponseTimes[j], sortedResponseTimes[j+1] = sortedResponseTimes[j+1], sortedResponseTimes[j]

@@ -108,11 +108,45 @@ func (r *GormCarrierRepository) SaveCarrier(ctx context.Context, carrier *smdp.C
 
 // UpdateCarrierMetrics updates carrier metrics
 func (r *GormCarrierRepository) UpdateCarrierMetrics(ctx context.Context, id string, metrics *smdp.CarrierMetrics) error {
-	// In a real implementation, you might have a separate metrics table
-	// For now, we'll log the metrics update
-	r.logger.Info("Carrier metrics updated", "carrier_id", id,
-		"total_requests", metrics.TotalRequests,
-		"success_rate", float64(metrics.SuccessfulRequests)/float64(metrics.TotalRequests)*100)
+	// Persist metrics alongside the carrier record
+	updates := map[string]interface{}{
+		"updated_at": time.Now(),
+	}
+
+	if err := r.db.WithContext(ctx).Table("carriers").Where("id = ?", id).Updates(updates).Error; err != nil {
+		r.logger.WithError(err).Error("Failed to update carrier record timestamp")
+		return fmt.Errorf("failed to update carrier metrics: %w", err)
+	}
+
+	// Store detailed metrics in a dedicated metrics table
+	metricsJSON, err := json.Marshal(metrics)
+	if err != nil {
+		return fmt.Errorf("failed to marshal carrier metrics: %w", err)
+	}
+
+	metricsRecord := struct {
+		CarrierID   string    `gorm:"column:carrier_id;index"`
+		MetricsData string    `gorm:"column:metrics_data;type:text"`
+		RecordedAt  time.Time `gorm:"column:recorded_at"`
+	}{
+		CarrierID:   id,
+		MetricsData: string(metricsJSON),
+		RecordedAt:  time.Now(),
+	}
+
+	if err := r.db.WithContext(ctx).Table("carrier_metrics").Create(&metricsRecord).Error; err != nil {
+		r.logger.WithError(err).Error("Failed to persist carrier metrics")
+		return fmt.Errorf("failed to store carrier metrics: %w", err)
+	}
+
+	successRate := float64(0)
+	if metrics.TotalRequests > 0 {
+		successRate = float64(metrics.SuccessfulRequests) / float64(metrics.TotalRequests) * 100
+	}
+	r.logger.WithField("carrier_id", id).
+		WithField("total_requests", metrics.TotalRequests).
+		WithField("success_rate", successRate).
+		Info("Carrier metrics updated")
 
 	return nil
 }

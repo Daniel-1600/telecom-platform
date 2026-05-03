@@ -17,9 +17,7 @@ class TelecomSDK private constructor(
     val payments: PaymentAPI
     val ratingPlans: RatingPlanAPI
     val system: SystemAPI
-    val analytics: AnalyticsAPI
-    val security: SecurityAPI
-    val currency: CurrencyAPI
+    val graphql: GraphQLAPI
     
     companion object {
         /**
@@ -35,11 +33,9 @@ class TelecomSDK private constructor(
             val payments = PaymentAPI(httpClient)
             val ratingPlans = RatingPlanAPI(httpClient)
             val system = SystemAPI(httpClient)
-            val analytics = AnalyticsAPI(httpClient)
-            val security = SecurityAPI(httpClient)
-            val currency = CurrencyAPI(httpClient)
+            val graphql = GraphQLAPI(httpClient)
             
-            return TelecomSDK(config, authProvider, httpClient, subscribers, usage, payments, ratingPlans, system, analytics, security, currency)
+            return TelecomSDK(config, authProvider, httpClient, subscribers, usage, payments, ratingPlans, system, graphql)
         }
     }
     
@@ -52,9 +48,7 @@ class TelecomSDK private constructor(
         payments: PaymentAPI,
         ratingPlans: RatingPlanAPI,
         system: SystemAPI,
-        analytics: AnalyticsAPI,
-        security: SecurityAPI,
-        currency: CurrencyAPI
+        graphql: GraphQLAPI
     ) {
         this.config = config
         this.authProvider = authProvider
@@ -64,9 +58,7 @@ class TelecomSDK private constructor(
         this.payments = payments
         this.ratingPlans = ratingPlans
         this.system = system
-        this.analytics = analytics
-        this.security = security
-        this.currency = currency
+        this.graphql = graphql
     }
     
     // Authentication methods

@@ -57,9 +57,7 @@ defmodule TelecomSDK do
     payments = PaymentAPI.new(http_client)
     rating_plans = RatingPlanAPI.new(http_client)
     system = SystemAPI.new(http_client)
-    analytics = AnalyticsAPI.new(http_client)
-    security = SecurityAPI.new(http_client)
-    currency = CurrencyAPI.new(http_client)
+    graphql = GraphQLAPI.new(http_client)
 
     state = %{
       config: config,
@@ -70,9 +68,7 @@ defmodule TelecomSDK do
       payments: payments,
       rating_plans: rating_plans,
       system: system,
-      analytics: analytics,
-      security: security,
-      currency: currency
+      graphql: graphql
     }
 
     {:ok, state}

@@ -14,7 +14,7 @@ use error::TelecomError;
 use std::time::Duration;
 use types::*;
 
-pub use api::{AnalyticsAPI, CurrencyAPI, PaymentAPI, RatingPlanAPI, SecurityAPI, SubscriberAPI, SystemAPI, UsageAPI};
+pub use api::{GraphQLAPI, PaymentAPI, RatingPlanAPI, SubscriberAPI, SystemAPI, UsageAPI};
 
 /// Telecom Platform SDK client
 #[derive(Clone)]
@@ -28,9 +28,7 @@ pub struct TelecomClient {
     pub payments: PaymentAPI,
     pub rating_plans: RatingPlanAPI,
     pub system: SystemAPI,
-    pub analytics: AnalyticsAPI,
-    pub security: SecurityAPI,
-    pub currency: CurrencyAPI,
+    pub graphql: GraphQLAPI,
 }
 
 #[derive(Debug, Clone)]
@@ -75,9 +73,7 @@ impl TelecomClient {
         let payments = PaymentAPI::new(http_client.clone());
         let rating_plans = RatingPlanAPI::new(http_client.clone());
         let system = SystemAPI::new(http_client.clone());
-        let analytics = AnalyticsAPI::new(http_client.clone());
-        let security = SecurityAPI::new(http_client.clone());
-        let currency = CurrencyAPI::new(http_client.clone());
+        let graphql = GraphQLAPI::new(http_client.clone());
 
         Self {
             auth_provider,
@@ -87,9 +83,7 @@ impl TelecomClient {
             payments,
             rating_plans,
             system,
-            analytics,
-            security,
-            currency,
+            graphql,
         }
     }
 

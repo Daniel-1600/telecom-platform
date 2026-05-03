@@ -16,9 +16,7 @@ type Client struct {
 	Payments    *PaymentAPI
 	RatingPlans *RatingPlanAPI
 	System      *SystemAPI
-	Analytics   *AnalyticsAPI
-	Security    *SecurityAPI
-	Currency    *CurrencyAPI
+	GraphQL     *GraphQLAPI
 }
 
 // Config holds the SDK configuration
@@ -77,9 +75,7 @@ func NewClient(config *Config) (*Client, error) {
 	client.Payments = NewPaymentAPI(httpClient)
 	client.RatingPlans = NewRatingPlanAPI(httpClient)
 	client.System = NewSystemAPI(httpClient)
-	client.Analytics = NewAnalyticsAPI(httpClient)
-	client.Security = NewSecurityAPI(httpClient)
-	client.Currency = NewCurrencyAPI(httpClient)
+	client.GraphQL = NewGraphQLAPI(httpClient)
 
 	return client, nil
 }

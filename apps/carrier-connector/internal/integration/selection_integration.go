@@ -10,7 +10,6 @@ import (
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/repository"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/services"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/smdp"
-	"github.com/sirupsen/logrus"
 )
 
 type SelectionIntegration struct {
@@ -34,8 +33,7 @@ func NewSelectionIntegration(repo *repository.PostgresProfileStore) *SelectionIn
 	manager := smdp.NewSMDPManager(repo, config)
 
 	// Create selection service
-	logger := logrus.New()
-	selectionService := services.NewSelectionService(manager, logger)
+	selectionService := services.NewSelectionService(manager)
 
 	// Create SMDP service
 	smdpService := services.NewSMDPService(repo)
@@ -43,7 +41,7 @@ func NewSelectionIntegration(repo *repository.PostgresProfileStore) *SelectionIn
 	return &SelectionIntegration{
 		manager:          manager,
 		selectionService: selectionService,
-		selectionHandler: handlers.NewSelectionHandler(manager),
+		selectionHandler: selectionService.GetHandler(),
 		smdpService:      smdpService,
 	}
 }

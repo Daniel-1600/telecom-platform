@@ -14,10 +14,7 @@ import (
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/repository"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/webhook"
 	"github.com/rs/zerolog"
-	"github.com/sirupsen/logrus"
 	csrf "github.com/utrack/gin-csrf"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 func main() {
@@ -98,20 +95,7 @@ func main() {
 		}
 	}
 
-	// Create logger for MVNO handlers
-	logger := logrus.New()
-	logger.SetLevel(logrus.InfoLevel)
-
-	// Create separate database connection for MVNO repository
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		handler.Logger.Fatal().Err(err).Msg("Failed to create database connection for MVNO repository")
-	}
-
-	// Create repository for MVNO operations
-	repo := repository.NewGormRepository(db, logger)
-
-	setupRoutes(router, client, profileRepo, webhookClient, messageQueue, repo, db, logger)
+	setupRoutes(router, client, profileRepo, webhookClient, messageQueue)
 
 	handler.Logger.Info().Str("port", port).Msg("Carrier Connector API server starting")
 	if err := router.Run(":" + port); err != nil {

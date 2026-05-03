@@ -11,19 +11,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// ExchangeRateProvider defines external rate providers
-type ExchangeRateProvider string
+// RateProviderType defines external rate providers
+type RateProviderType string
 
 const (
-	ProviderOpenExchange ExchangeRateProvider = "openexchangerates"
-	ProviderFixer        ExchangeRateProvider = "fixer"
-	ProviderXE           ExchangeRateProvider = "xe"
-	ProviderInternal     ExchangeRateProvider = "internal"
+	ProviderOpenExchange RateProviderType = "openexchangerates"
+	ProviderFixer        RateProviderType = "fixer"
+	ProviderXE           RateProviderType = "xe"
+	ProviderInternal     RateProviderType = "internal"
 )
 
 // RealTimeExchangeService provides real-time exchange rates
 type RealTimeExchangeService struct {
-	provider     ExchangeRateProvider
+	provider     RateProviderType
 	apiKey       string
 	baseCurrency string
 	rates        map[string]float64
@@ -36,7 +36,7 @@ type RealTimeExchangeService struct {
 
 // ExchangeRateConfig configures the exchange rate service
 type ExchangeRateConfig struct {
-	Provider     ExchangeRateProvider
+	Provider     RateProviderType
 	APIKey       string
 	BaseCurrency string
 	CacheTTL     time.Duration

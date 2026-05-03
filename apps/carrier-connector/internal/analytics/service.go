@@ -64,7 +64,8 @@ func (s *Service) GetDashboard(ctx context.Context, filter *AnalyticsFilter) (*D
 
 // GetRevenueAnalytics retrieves detailed revenue analytics
 func (s *Service) GetRevenueAnalytics(ctx context.Context, filter *AnalyticsFilter) (*RevenueMetrics, error) {
-	return s.getRevenueMetrics(ctx, filter)
+	metrics, err := s.getRevenueMetrics(ctx, filter)
+	return &metrics, err
 }
 
 func (s *Service) getRevenueMetrics(ctx context.Context, filter *AnalyticsFilter) (RevenueMetrics, error) {
@@ -141,9 +142,11 @@ func (s *Service) getCarrierMetrics(ctx context.Context, filter *AnalyticsFilter
 	}
 
 	// Query carrier stats
+	var activeCount int64
 	s.db.WithContext(ctx).Table("carriers").
 		Where("is_active = ?", true).
-		Count((*int64)(&metrics.ActiveCarriers))
+		Count(&activeCount)
+	metrics.ActiveCarriers = int(activeCount)
 
 	return metrics, nil
 }

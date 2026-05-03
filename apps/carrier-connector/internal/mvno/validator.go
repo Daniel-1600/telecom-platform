@@ -136,7 +136,7 @@ func (v *OnboardingValidator) validateBusinessRegistration(businessID string) er
 }
 
 // validateCompliance validates regulatory compliance
-func (v *OnboardingValidator) validateCompliance(ctx context.Context, mvno *MVNO) error {
+func (v *OnboardingValidator) validateCompliance(_ context.Context, mvno *MVNO) error {
 	// Check regulatory compliance for target countries
 	for _, country := range mvno.Config.AllowedCountries {
 		if err := v.checkCountryCompliance(country); err != nil {

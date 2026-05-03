@@ -88,19 +88,19 @@ func (p *MVNOProvisioner) SetupAPIAccess(ctx context.Context, mvno *MVNO) error 
 }
 
 // provisionTenantContext creates tenant context
-func (p *MVNOProvisioner) provisionTenantContext(ctx context.Context, mvno *MVNO) error {
+func (p *MVNOProvisioner) provisionTenantContext(_ context.Context, mvno *MVNO) error {
 	p.logger.WithField("mvno_id", mvno.ID).Info("Tenant context provisioned")
 	return nil
 }
 
 // provisionDatabaseSchema provisions database schema
-func (p *MVNOProvisioner) provisionDatabaseSchema(ctx context.Context, mvno *MVNO) error {
+func (p *MVNOProvisioner) provisionDatabaseSchema(_ context.Context, mvno *MVNO) error {
 	p.logger.WithField("mvno_id", mvno.ID).Info("Database schema provisioned")
 	return nil
 }
 
 // provisionStorageResources provisions storage resources
-func (p *MVNOProvisioner) provisionStorageResources(ctx context.Context, mvno *MVNO) error {
+func (p *MVNOProvisioner) provisionStorageResources(_ context.Context, mvno *MVNO) error {
 	storageSize := p.getStorageAllocation(mvno.Plan)
 	p.logger.WithFields(map[string]any{
 		"mvno_id":    mvno.ID,
@@ -125,7 +125,7 @@ func (p *MVNOProvisioner) selectCarriers(countries []string) ([]string, error) {
 }
 
 // configureCarrier configures individual carrier
-func (p *MVNOProvisioner) configureCarrier(ctx context.Context, mvno *MVNO, carrierID string) error {
+func (p *MVNOProvisioner) configureCarrier(_ context.Context, mvno *MVNO, carrierID string) error {
 	p.logger.WithFields(map[string]any{
 		"mvno_id":    mvno.ID,
 		"carrier_id": carrierID,
@@ -134,7 +134,7 @@ func (p *MVNOProvisioner) configureCarrier(ctx context.Context, mvno *MVNO, carr
 }
 
 // configureRatePlans configures rate plans
-func (p *MVNOProvisioner) configureRatePlans(ctx context.Context, mvno *MVNO, billingID string) error {
+func (p *MVNOProvisioner) configureRatePlans(_ context.Context, mvno *MVNO, billingID string) error {
 	p.logger.WithFields(map[string]any{
 		"mvno_id":    mvno.ID,
 		"billing_id": billingID,
@@ -144,7 +144,7 @@ func (p *MVNOProvisioner) configureRatePlans(ctx context.Context, mvno *MVNO, bi
 }
 
 // setupPaymentProcessing setup payment processing
-func (p *MVNOProvisioner) setupPaymentProcessing(ctx context.Context, mvno *MVNO, billingID string) error {
+func (p *MVNOProvisioner) setupPaymentProcessing(_ context.Context, mvno *MVNO, billingID string) error {
 	p.logger.WithFields(map[string]any{
 		"mvno_id":    mvno.ID,
 		"billing_id": billingID,

@@ -78,7 +78,7 @@ func (p *MVNOProvisioner) SetupAPIAccess(ctx context.Context, mvno *MVNO) error 
 	_ = id.GeneratePrefixed("sec") // Generate secret key but don't use until storage is implemented
 	permissions := p.getAPIPermissions(mvno.Plan)
 
-	p.logger.WithFields(map[string]interface{}{
+	p.logger.WithFields(map[string]any{
 		"mvno_id":     mvno.ID,
 		"api_key":     apiKey[:8] + "...",
 		"permissions": len(permissions),
@@ -102,7 +102,7 @@ func (p *MVNOProvisioner) provisionDatabaseSchema(ctx context.Context, mvno *MVN
 // provisionStorageResources provisions storage resources
 func (p *MVNOProvisioner) provisionStorageResources(ctx context.Context, mvno *MVNO) error {
 	storageSize := p.getStorageAllocation(mvno.Plan)
-	p.logger.WithFields(map[string]interface{}{
+	p.logger.WithFields(map[string]any{
 		"mvno_id":    mvno.ID,
 		"storage_gb": storageSize,
 	}).Info("Storage resources provisioned")
@@ -126,7 +126,7 @@ func (p *MVNOProvisioner) selectCarriers(countries []string) ([]string, error) {
 
 // configureCarrier configures individual carrier
 func (p *MVNOProvisioner) configureCarrier(ctx context.Context, mvno *MVNO, carrierID string) error {
-	p.logger.WithFields(map[string]interface{}{
+	p.logger.WithFields(map[string]any{
 		"mvno_id":    mvno.ID,
 		"carrier_id": carrierID,
 	}).Info("Carrier configured")
@@ -135,7 +135,7 @@ func (p *MVNOProvisioner) configureCarrier(ctx context.Context, mvno *MVNO, carr
 
 // configureRatePlans configures rate plans
 func (p *MVNOProvisioner) configureRatePlans(ctx context.Context, mvno *MVNO, billingID string) error {
-	p.logger.WithFields(map[string]interface{}{
+	p.logger.WithFields(map[string]any{
 		"mvno_id":    mvno.ID,
 		"billing_id": billingID,
 		"plan":       mvno.Plan,
@@ -145,7 +145,7 @@ func (p *MVNOProvisioner) configureRatePlans(ctx context.Context, mvno *MVNO, bi
 
 // setupPaymentProcessing setup payment processing
 func (p *MVNOProvisioner) setupPaymentProcessing(ctx context.Context, mvno *MVNO, billingID string) error {
-	p.logger.WithFields(map[string]interface{}{
+	p.logger.WithFields(map[string]any{
 		"mvno_id":    mvno.ID,
 		"billing_id": billingID,
 	}).Info("Payment processing setup")

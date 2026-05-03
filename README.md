@@ -348,6 +348,125 @@ The API Gateway provides:
 
 For detailed setup, see [Gateway Quickstart Guide](./docs/gateway-quickstart.md)
 
+## Platform Architecture & Components
+
+### **API Gateway Layer**
+- **Traefik API Gateway**: Centralized entry point providing SSL termination, rate limiting, authentication, and request routing
+- **Unified HTTPS Endpoint**: All services accessible via `https://api.telecom.com`
+- **Security Middleware**: JWT authentication, security headers, compression, and retry logic
+- **Monitoring Dashboard**: Real-time metrics and service health visualization
+
+### **Core Network Services**
+
+#### **API Server (Go/Gin)**
+- **Purpose**: Central BSS (Business Support System) API
+- **Features**: Authentication, subscriber management, automation, plugin system
+- **Architecture**: Microservices with Gin framework, PostgreSQL, Redis caching
+- **Key Modules**: Handlers for analytics, payments, monitoring, RBAC, websockets
+
+#### **Carrier Connector (Go/Gin)**
+- **Purpose**: ES2+ interface for eSIM profile management and carrier integration
+- **Features**: Multi-carrier aggregation, GSMA ES2+ standards compliance, real-time eSIM provisioning
+- **Architecture**: GORM for database, ES2+ client, message queue integration
+- **Key Modules**: Pricing optimization, security (fraud detection), rate plans, MVNO support
+
+#### **Charging Engine (Rust/Axum)**
+- **Purpose**: Real-time credit control, usage tracking, and billing
+- **Features**: Redis-backed rate limiting, PostgreSQL for rate plans, circuit breakers
+- **Architecture**: High-performance Rust with tokio async runtime
+- **Key Modules**: Charging handlers, authentication, monitoring, rating plans
+
+#### **Packet Gateway (Rust/eBPF)**
+- **Purpose**: High-performance packet processing for network traffic routing and QoS enforcement
+- **Features**: eBPF-accelerated packet processing for line-rate throughput
+
+### **Supporting Infrastructure**
+- **PostgreSQL**: Persistent data storage for subscribers, automations, configuration
+- **Redis**: Distributed caching, rate limiting, session management
+- **MongoDB**: Document storage for 5G core network data
+- **RabbitMQ**: Asynchronous event-driven communication
+- **Consul**: Service discovery and health checking
+- **Vault**: Secure secret management
+
+### **Frontend Applications**
+
+#### **Web Dashboard (Next.js/TypeScript)**
+- **Purpose**: Management interface for network operations
+- **Features**: Real-time dashboard, subscriber management, analytics, pricing optimization
+- **Architecture**: React components, Tailwind CSS, API integration
+- **Key Pages**: Dashboard, analytics, pricing, subscribers, system health
+
+### **SDK Ecosystem**
+
+Multi-language SDKs for developer integration:
+- **Swift**: iOS/macOS applications with async/await support
+- **Python**: Backend integration and automation
+- **TypeScript**: Web applications and Node.js backends
+- **Go**: Microservices and CLI tools
+- **Kotlin**: Android applications
+- **Rust**: High-performance systems
+- **Elixir**: Phoenix applications
+- **Ruby**: Rails integration
+
+### **Analytics & Intelligence**
+
+#### **Advanced Analytics Modules**
+1. **Churn Analysis**: ML-powered customer churn prediction with risk scoring
+2. **Fraud Detection**: Real-time fraud detection (account takeover, subscription fraud, SIM swap attacks)
+3. **Market Analytics**: Market penetration analysis, competitor tracking
+4. **Predictive Maintenance**: Infrastructure health monitoring with failure prediction
+5. **Pricing Optimization**: Dynamic pricing strategies with elasticity calculations
+
+#### **Pricing Optimization System**
+- **Strategies**: Revenue maximization, market share, profit margin, competitive positioning, churn reduction
+- **Advanced Calculations**: 
+  - Dynamic elasticity based on rate plan characteristics
+  - Competitive index with seasonal market analysis
+  - ROI calculation with period-based adjustments
+- **Implementation**: Go services with mathematical modeling and bounded realistic values
+
+### **Commercial Applications**
+
+#### **eSIM Operators (Airalo-style)**
+- Multi-carrier aggregation across 400+ global carriers
+- Real-time eSIM provisioning via GSMA ES2+ standards
+- Usage-based billing with global rate plans
+- B2B2C model for MVNO partnerships
+
+#### **Enterprise Private Networks**
+- Industrial IoT and manufacturing connectivity
+- Campus networks for universities and hospitals
+- Critical infrastructure communications
+- Secure data sovereignty deployments
+
+#### **Telecom Service Providers**
+- MVNO enablement platform
+- Network slicing as a service
+- Edge computing integration
+- 5G core network hosting
+
+### **Data Flow Architecture**
+
+```
+Client Applications → Traefik Gateway → API Services → Backend Services
+                              ↓
+                        Authentication & Rate Limiting
+                              ↓
+                    Message Queue (RabbitMQ) for Async Events
+                              ↓
+              Database Layer (PostgreSQL, Redis, MongoDB)
+```
+
+### **Key Features Summary**
+
+- **Sovereignty & Security**: Full data sovereignty, end-to-end encryption, RBAC
+- **Performance**: eBPF-accelerated packet processing, Redis-backed caching
+- **Scalability**: Microservices architecture, horizontal scaling
+- **Developer Experience**: Multi-language SDKs, comprehensive documentation
+- **Enterprise Ready**: Monitoring, backup, security, compliance features
+
+The platform represents a **complete telecom stack** for modern cellular network operations, combining carrier-grade reliability with cloud-native architecture and advanced analytics capabilities.
+
 ## API Endpoints
 
 ### Analytics API

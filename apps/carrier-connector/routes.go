@@ -6,55 +6,52 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/es2"
-	handler "github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/handlers"
+	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/handlers"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/mq"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/repository"
+	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/services"
 	"github.com/nutcas3/telecom-platform/apps/carrier-connector/internal/webhook"
 )
 
 // setupRoutes registers all HTTP routes, wiring the ES2+ client, profile repo, webhook client, and message queue.
-func setupRoutes(router *gin.Engine, client *es2.ES2Client, repo repository.ProfileRepository, webhookClient *webhook.WebhookClient, messageQueue *mq.MessageQueue) {
+func setupRoutes(router *gin.Engine, client *es2.ES2Client, profileRepo repository.ProfileRepository, webhookClient *webhook.WebhookClient, messageQueue *mq.MessageQueue, repo repository.Repository, logger *logrus.Logger) {
 	api := router.Group("/api/v1")
 	api.GET("/health", healthHandler)
-	api.GET("/health/ready", readinessHandler(repo))
+	api.GET("/health/ready", readinessHandler(profileRepo))
 	api.GET("/health/live", livenessHandler)
 	api.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	esim := api.Group("/esim")
 	{
-		esim.POST("/profiles", handler.OrderProfileHandlerWithRepo(client, repo, webhookClient, messageQueue))
-		esim.GET("/profiles", handler.ListProfilesHandler(repo))
-		esim.GET("/profiles/:profileId", handler.GetProfileHandler(repo))
-		esim.DELETE("/profiles/:profileId", handler.DeleteProfileHandler(repo))
+		esim.POST("/profiles", handlers.OrderProfileHandlerWithRepo(client, profileRepo, webhookClient, messageQueue))
+		esim.GET("/profiles", handlers.ListProfilesHandler(profileRepo))
+		esim.GET("/profiles/:profileId", handlers.GetProfileHandler(profileRepo))
+		esim.DELETE("/profiles/:profileId", handlers.DeleteProfileHandler(profileRepo))
 	}
 
 	carrier := api.Group("/carrier")
 	{
-		carrier.GET("/info", handler.GetCarrierInfoHandler(client))
-		carrier.GET("/connectivity", handler.CheckConnectivityHandler(client))
+		carrier.GET("/info", handlers.GetCarrierInfoHandler(client))
+		carrier.GET("/connectivity", handlers.CheckConnectivityHandler(client))
 	}
 
 	// MVNO routes
 	mvno := api.Group("/mvno")
 	{
-		// Note: These will be implemented with proper service initialization
-		mvno.POST("/onboarding", func(c *gin.Context) {
-			c.JSON(http.StatusNotImplemented, gin.H{"error": "MVNO onboarding endpoint - to be implemented"})
-		})
-		mvno.GET("", func(c *gin.Context) {
-			c.JSON(http.StatusNotImplemented, gin.H{"error": "MVNO list endpoint - to be implemented"})
-		})
-		mvno.GET("/:id", func(c *gin.Context) {
-			c.JSON(http.StatusNotImplemented, gin.H{"error": "MVNO get endpoint - to be implemented"})
-		})
-		mvno.PUT("/:id/status", func(c *gin.Context) {
-			c.JSON(http.StatusNotImplemented, gin.H{"error": "MVNO status update endpoint - to be implemented"})
-		})
-		mvno.GET("/stats", func(c *gin.Context) {
-			c.JSON(http.StatusNotImplemented, gin.H{"error": "MVNO stats endpoint - to be implemented"})
-		})
+		// Create MVNO handlers
+		onboardingService := services.NewOnboardingService(logger)
+		mvnoHandler := handlers.NewMVNOHandler(onboardingService, repo, logger)
+		managementHandler := handlers.NewManagementHandler(repo, logger)
+
+		// MVNO onboarding and management routes
+		mvno.POST("/onboarding", mvnoHandler.StartOnboarding)
+		mvno.GET("", mvnoHandler.ListMVNOs)
+		mvno.GET("/:id", mvnoHandler.GetMVNO)
+		mvno.PUT("/:id/status", managementHandler.UpdateMVNOStatus)
+		mvno.GET("/stats", managementHandler.GetMVNOStats)
 	}
 }
 

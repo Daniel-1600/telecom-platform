@@ -121,9 +121,10 @@ func (m *OnboardingMonitor) GetStepSuccessRate() map[string]float64 {
 				stepStats[step.Name] = map[string]int{"completed": 0, "failed": 0, "total": 0}
 			}
 			stepStats[step.Name]["total"]++
-			if step.Status == "completed" {
+			switch step.Status {
+case "completed":
 				stepStats[step.Name]["completed"]++
-			} else if step.Status == "failed" {
+			case "failed":
 				stepStats[step.Name]["failed"]++
 			}
 		}

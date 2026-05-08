@@ -62,10 +62,10 @@ func listSubscribers(u *uiContext) error {
 		t.AddColumn("IMSI", 16, "left")
 		t.AddColumn("Name", 22, "left")
 		t.AddColumn("Status", 10, "left")
-		t.AddColumn("Balance", 10, "right")
-		t.AddStyledRow(statusStyle("ACTIVE").Style, "310260123456789", "John Doe", "Active", "$45.67")
-		t.AddStyledRow(statusStyle("ACTIVE").Style, "310260123456790", "Jane Smith", "Active", "$123.45")
-		t.AddStyledRow(statusStyle("INACTIVE").Style, "310260123456791", "Bob Johnson", "Inactive", "$0.00")
+		t.AddColumn("MSISDN", 10, "right")
+		t.AddStyledRow(statusStyle("ACTIVE").Style, "310260123456789", "John Doe", "Active", "07XXXXXXX")
+		t.AddStyledRow(statusStyle("ACTIVE").Style, "310260123456790", "Jane Smith", "Active", "07XXXXXXX")
+		t.AddStyledRow(statusStyle("INACTIVE").Style, "310260123456791", "Bob Johnson", "Inactive", "07XXXXXXX")
 		fmt.Println(t.Render())
 		return nil
 	}
@@ -77,7 +77,7 @@ func listSubscribers(u *uiContext) error {
 	t.AddColumn("Balance", 10, "right")
 	for _, s := range subs {
 		t.AddStyledRow(statusStyle(s.Status).Style,
-			s.IMSI, s.Name, s.Status, fmt.Sprintf("$%.2f", s.Balance))
+			s.IMSI, s.Status)
 	}
 	fmt.Println(t.Render())
 	return nil
@@ -102,7 +102,7 @@ func createSubscriber(u *uiContext, args []string) error {
 	t.AddColumn("Field", 12, "left")
 	t.AddColumn("Value", 24, "left")
 	t.AddRow("IMSI", sub.IMSI)
-	t.AddRow("Name", sub.Name)
+	// t.AddRow("Name", sub.Name)
 	t.AddRow("Status", sub.Status)
 	fmt.Println(t.Render())
 	return nil
@@ -151,9 +151,9 @@ func showSubscriber(u *uiContext, args []string) error {
 		return nil
 	}
 	t.AddRow("IMSI", sub.IMSI)
-	t.AddRow("Name", sub.Name)
+	t.AddRow("Name", sub.FirstName+" "+sub.LastName)
 	t.AddRow("Status", sub.Status)
-	t.AddRow("Balance", fmt.Sprintf("$%.2f", sub.Balance))
+	t.AddRow("MSISDN", sub.MSISDN)
 	fmt.Println(t.Render())
 	return nil
 }

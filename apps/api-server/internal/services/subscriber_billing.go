@@ -34,6 +34,7 @@ func (s *SubscriberService) GetAccount(ctx context.Context, imsi string) (*model
 
 	return &models.SubscriberAccount{
 		IMSI:        string(subscriber.IMSI),
+		MSISDN:      subscriber.MSISDN,
 		Balance:     balance,
 		DataLimit:   float64(subscriber.Plan.DataLimit),
 		DataUsed:    dataUsed,
@@ -118,8 +119,9 @@ func (s *SubscriberService) GetRatingPlan(ctx context.Context, planId string) (*
 }
 
 // TopUpBalance tops up a subscriber's account balance.
-func (s *SubscriberService) TopUpBalance(ctx context.Context, imsi string, req *models.TopUpRequest) (*models.SubscriberAccount, error) {
-	var account models.SubscriberAccount
+func (s *SubscriberService) TopUpBalance(ctx context.Context, imsi string, req *models.TopUpRequest) (*models.Subscriber, error) {
+	// changed this to subscriber (initially added the MSISDN field to the subscriber model to match the subscriber account model for queries and requests)
+	var account models.Subscriber
 
 	if err := s.db.DB.WithContext(ctx).Where("imsi = ?", imsi).First(&account).Error; err != nil {
 		return nil, fmt.Errorf("subscriber account not found: %w", err)

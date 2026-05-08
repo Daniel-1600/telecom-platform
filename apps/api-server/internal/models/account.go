@@ -6,6 +6,7 @@ import (
 
 type SubscriberAccount struct {
 	IMSI        string    `json:"imsi"`
+	MSISDN      string    `json:"msisdn"`
 	Balance     float64   `json:"balance"`
 	DataLimit   float64   `json:"data_limit"`
 	DataUsed    float64   `json:"data_used"`

@@ -39,7 +39,7 @@ func (cs *ChargingService) GetSystemStats(ctx context.Context) (*models.SystemSt
 
 	// Count total accounts
 	var totalAccounts int64
-	if err := cs.db.DB.WithContext(ctx).Model(&models.SubscriberAccount{}).
+	if err := cs.db.DB.WithContext(ctx).Model(&models.Subscriber{}).
 		Count(&totalAccounts).Error; err != nil {
 		return nil, fmt.Errorf("failed to count total accounts: %w", err)
 	}

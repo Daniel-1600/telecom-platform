@@ -91,7 +91,7 @@ func (s *SubscriberService) DeleteSubscriber(ctx context.Context, subscriberId u
 	}
 
 	if err := tx.Where("imsi IN (SELECT imsi FROM subscribers WHERE id = ?)", subscriberId).
-		Delete(&models.SubscriberAccount{}).Error; err != nil {
+		Delete(&models.Subscriber{}).Error; err != nil {
 		tx.Rollback()
 		return false, fmt.Errorf("failed to delete account: %w", err)
 	}

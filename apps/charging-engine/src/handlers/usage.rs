@@ -18,7 +18,7 @@ pub async fn record_usage(
     let session_id = req.get("session_id").and_then(|v| v.as_str()).ok_or_else(|| {
         ChargingError::InvalidInput("Missing session_id".to_string())
     })?;
-    
+
     validate_session_id(session_id)?;
 
     let event = crate::charging::types::UsageEvent {
@@ -53,7 +53,7 @@ pub async fn calculate_usage_cost(
     let session_id = req.get("session_id").and_then(|v| v.as_str()).ok_or_else(|| {
         ChargingError::InvalidInput("Missing session_id".to_string())
     })?;
-    
+
     validate_session_id(session_id)?;
 
     let event = crate::charging::types::UsageEvent {
@@ -68,7 +68,7 @@ pub async fn calculate_usage_cost(
 
     let cost = state.charging_engine.calculate_usage_cost(&event).await
         .with_context("Failed to calculate usage cost")?;
-    
+
     Ok(Json(serde_json::json!({
         "cost": cost,
         "imsi": imsi,
@@ -88,7 +88,7 @@ pub async fn rate_usage(
     let session_id = req.get("session_id").and_then(|v| v.as_str()).ok_or_else(|| {
         ChargingError::InvalidInput("Missing session_id".to_string())
     })?;
-    
+
     validate_session_id(session_id)?;
 
     let event = crate::charging::types::UsageEvent {
@@ -103,7 +103,7 @@ pub async fn rate_usage(
 
     let rated_event = state.charging_engine.rate_usage(event).await
         .with_context("Failed to rate usage")?;
-    
+
     Ok(Json(serde_json::json!({
         "rated_event": rated_event,
     })))
@@ -121,7 +121,7 @@ pub async fn process_usage(
     let session_id = req.get("session_id").and_then(|v| v.as_str()).ok_or_else(|| {
         ChargingError::InvalidInput("Missing session_id".to_string())
     })?;
-    
+
     validate_session_id(session_id)?;
 
     let event = crate::charging::types::UsageEvent {
@@ -136,11 +136,24 @@ pub async fn process_usage(
 
     state.charging_engine.process_usage_event(event).await
         .with_context("Failed to process usage event")?;
-    
-    Ok(Json(serde_json::json!({
-        "status": "processed",
-        "imsi": imsi,
-    })))
+
+    let result = state.charging_engine.process_usage_event(event).await
+            .with_context("Failed to process usage event")?;
+
+        Ok(Json(serde_json::json!({
+            "status": "processed",
+            "imsi": result.imsi,
+            "session_id": result.session_id,
+            "volume": result.volume,
+            "cost": result.cost,
+            "charging_source": match result.charging_source {
+                ChargingSource::Bundle { subscriber_bundle_id } => serde_json::json!({
+                    "type": "bundle",
+                    "subscriber_bundle_id": subscriber_bundle_id
+                }),
+                ChargingSource::Credit => serde_json::json!({ "type": "credit" }),
+            }
+        })))
 }
 
 /// GET /v1/invoice/:imsi/:period
@@ -151,7 +164,7 @@ pub async fn generate_invoice(
 ) -> ChargingResult<Json<serde_json::Value>> {
     let invoice = state.charging_engine.generate_invoice(&imsi, &period).await
         .with_context("Failed to generate invoice")?;
-    
+
     Ok(Json(serde_json::json!({
         "imsi": imsi,
         "period": period,

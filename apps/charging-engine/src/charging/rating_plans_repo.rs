@@ -16,7 +16,7 @@ use crate::errors::{ChargingError, ChargingResult};
 /// Repository for rating plans backed by Postgres.
 #[derive(Clone)]
 pub struct RatingPlansRepo {
-    pool: PgPool,
+   pub(crate) pool: PgPool,
     circuit_breaker: CircuitBreaker,
 }
 
@@ -243,14 +243,14 @@ fn row_to_plan(row: sqlx::postgres::PgRow) -> RatingPlan {
 /// Changes to the repo root directory to find the migrations folder.
 async fn run_migrations(database_url: &str) -> Result<(), Box<dyn std::error::Error>> {
     use std::process::Command;
-    
+
     // Change to repo root to find migrations directory
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repo_root = manifest_dir
         .parent()
         .and_then(|p| p.parent())
         .ok_or("Failed to determine repo root")?;
-    
+
     let output = Command::new("goose")
         .current_dir(&repo_root)
         .args(["postgres", database_url, "up", "migrations"])

@@ -1,0 +1,5 @@
+-- +goose Up
+ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS sqn BIGINT NOT NULL DEFAULT 0;
+
+-- +goose Down
+ALTER TABLE subscribers DROP COLUMN IF EXISTS sqn;

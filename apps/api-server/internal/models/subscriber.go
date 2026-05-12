@@ -25,6 +25,7 @@ type Subscriber struct {
 
 	AuthKey     string `json:"auth_key" gorm:"not null"`
 	OPc         string `json:"opc" gorm:"not null"`
+	SQN         int64  `json:"sqn" gorm:"default:0"`
 	ServingPLMN PLMN   `json:"serving_plmn" gorm:"not null"`
 
 	EUICCID       string        `json:"euicc_id"`

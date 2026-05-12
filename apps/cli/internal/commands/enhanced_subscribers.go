@@ -87,8 +87,11 @@ func balanceSubscriberUI(args []string, config *types.CLIConfig) error {
 		return nil
 	}
 	t.AddRow("IMSI", sub.IMSI)
-	t.AddRow("Name", sub.Name)
-	t.AddRow("Balance", fmt.Sprintf("$%.2f", sub.Balance))
+	t.AddRow("MSISDN", sub.MSISDN)
+	// (commented this due to a change in the CLI/internal/api/subscriber.go to sue Subscriber isntead of SubscriberAccount.)
+	// t.AddRow("Name", sub.Name)
+	// t.AddRow("Balance", fmt.Sprintf("$%.2f", sub.Balance))
+
 	fmt.Println(t.Render())
 	return nil
 }
@@ -127,7 +130,7 @@ func searchSubscribersUI(args []string, config *types.CLIConfig) error {
 	subs, err := u.client.ListSubscribers()
 	t := u.newTable()
 	t.AddColumn("IMSI", 16, "left")
-	t.AddColumn("Name", 22, "left")
+	// t.AddColumn("Name", 22, "left")
 	t.AddColumn("Status", 10, "left")
 	t.AddColumn("Balance", 10, "right")
 
@@ -139,7 +142,7 @@ func searchSubscribersUI(args []string, config *types.CLIConfig) error {
 	}
 	for _, s := range subs {
 		t.AddStyledRow(statusStyle(s.Status).Style,
-			s.IMSI, s.Name, s.Status, fmt.Sprintf("$%.2f", s.Balance))
+			s.IMSI, s.Status)
 	}
 	fmt.Println(t.Render())
 	return nil

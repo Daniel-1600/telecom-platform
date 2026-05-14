@@ -14,7 +14,7 @@ use crate::handlers::{
     engine_start, engine_stop, engine_uptime, get_balance, get_error_stats, get_performance_metrics,
     get_rating_plan, get_subscriber, get_system_stats, is_user_blocked, list_rating_plans,
     record_usage, remove_rating_plan, start_sync, unblock_user, update_subscriber, health_check,
-    calculate_usage_cost, rate_usage, process_usage, generate_invoice,
+    calculate_usage_cost, rate_usage, process_usage, generate_invoice, add_airtime, get_airtime_balance, create_bundle, activate_bundle, list_active_bundles, consume_from_bundle
 };
 use crate::models::AppState;
 
@@ -76,6 +76,20 @@ pub fn create_router(state: AppState) -> Router {
         .route("/v1/usage/rate", post(rate_usage))
         .route("/v1/usage/process", post(process_usage))
         .route("/v1/invoice/:imsi/:period", get(generate_invoice))
+        //airtime and bundle routes
+        .route("/v1/airtime/:imsi/add", post(add_airtime))
+        .route("/v1/airtime/:imsi/balance", get(get_airtime_balance))
+        .route("/v1/bundles", post(create_bundle))
+        .route("/v1/bundles/:id/activate", post(activate_bundle))
+        .route("/v1/bundles/:imsi/active", get(list_active_bundles))
+        .route("/v1/bundles/consume", post(consume_from_bundle))
+        .route("/v1/bundles", get(list_bundles))
+        .route("/v1/bundles/:id", get(get_bundle))
+        .route("/v1/bundles/deactivate/:id", delete(deactivate_bundle))
+        .route("/v1/bundles/:id/purchase_with_airtime", post(purchase_bundle_with_airtime))
+        .route("/v1/bundles/:id/purchase", post(purchase_bundle))
+        .route("/v1/bundles/:id/gift", post(gift_bundle))
+        .route("/v1/airtime/:imsi/deduct", post(deduct_airtime))
         .layer(cors)
         .layer(GovernorLayer::new(governor_conf))
         .route_layer(axum::middleware::from_fn_with_state(state.auth_config.clone(), auth_middleware))

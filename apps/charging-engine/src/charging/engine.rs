@@ -29,6 +29,7 @@ pub struct ChargingEngine {
     pub(crate) startup_time: SystemTime,
     pub(crate) redis_circuit_breaker: CircuitBreaker,
     pub(crate) postgres_circuit_breaker: CircuitBreaker,
+    pub(crate) bundle_repo: BundleRepo,
 }
 
 impl ChargingEngine {
@@ -39,6 +40,7 @@ impl ChargingEngine {
         redis_url: &str,
         plans: RatingPlansRepo,
         sync_interval_secs: u64,
+        bundle_repo: BundleRepo,
     ) -> ChargingResult<Self> {
         let redis_client = redis::Client::open(redis_url)
             .map_err(|e| crate::errors::ChargingError::RedisConnection(e.to_string()))?;
@@ -53,7 +55,7 @@ impl ChargingEngine {
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(60);
-        
+
         let postgres_failure_threshold: u32 = std::env::var("POSTGRES_FAILURE_THRESHOLD")
             .ok()
             .and_then(|s| s.parse().ok())
@@ -67,7 +69,7 @@ impl ChargingEngine {
             redis_failure_threshold,
             Duration::from_secs(redis_timeout),
         );
-        
+
         let postgres_circuit_breaker = CircuitBreaker::new(
             postgres_failure_threshold,
             Duration::from_secs(postgres_timeout),
@@ -80,6 +82,7 @@ impl ChargingEngine {
             startup_time: SystemTime::now(),
             redis_circuit_breaker,
             postgres_circuit_breaker,
+            bundle_repo
         })
     }
 

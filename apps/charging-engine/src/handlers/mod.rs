@@ -6,6 +6,8 @@ pub mod monitoring;
 pub mod rating;
 pub mod subscriber;
 pub mod usage;
+pub mod airtime;
+pub mod bundles;
 
 pub use block::{block_user, is_user_blocked, unblock_user};
 pub use credit::{add_credit, check_credit, deduct_credit, get_balance};
@@ -15,3 +17,5 @@ pub use monitoring::{detailed_health_check, get_error_stats, get_performance_met
 pub use rating::{add_rating_plan, get_rating_plan, list_rating_plans, remove_rating_plan};
 pub use subscriber::{get_subscriber, update_subscriber};
 pub use usage::{calculate_usage_cost, generate_invoice, process_usage, rate_usage, record_usage};
+pub use airtime::{add_airtime, get_airtime_balance, deduct_airtime};
+pub use bundles::{create_bundle, activate_bundle, list_active_bundles, consume_from_bundle,list_bundles, get_bundle, deactivate_bundle, gift_bundle, purchase_bundle, purchase_bundle_with_airtime};

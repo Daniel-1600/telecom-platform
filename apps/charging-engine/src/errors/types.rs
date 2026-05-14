@@ -3,37 +3,51 @@ use axum::http::StatusCode;
 use serde_json::json;
 use thiserror::Error;
 
+use crate::charging;
+
 #[derive(Debug, Error, Clone)]
 pub enum ChargingError {
     #[error("Redis connection error: {0}")]
     RedisConnection(String),
-    
+
     #[error("Redis operation error: {0}")]
     RedisOperation(String),
-    
+
     #[error("Database error: {0}")]
     DatabaseError(String),
-    
+
     #[error("Subscriber not found: {0}")]
     SubscriberNotFound(String),
-    
+
     #[error("Rating plan not found: {0}")]
     RatingPlanNotFound(String),
-    
+
     #[error("Insufficient credit: available={available}, requested={requested}")]
     InsufficientCredit { available: u64, requested: u64 },
-    
+
     #[error("Usage blocked: {0}")]
     UsageBlocked(String),
-    
+
     #[error("Invalid input: {0}")]
     InvalidInput(String),
-    
+
     #[error("Serialization error: {0}")]
     SerializationError(String),
-    
+
     #[error("Internal error: {0}")]
     InternalError(String),
+
+    #[error("Bundle not found: {0}")]
+    BundleNotFound(String),
+
+    #[error("Bundle already active")]
+    BundleAlreadyActive,
+
+    #[error("Invalid bundle configuration: {0}")]
+    InvalidBundleConfig(String),
+
+    #[error("Insufficient airtime: available={available}, required={required}")]
+    InsufficientAirtime { available: i64, required: i64 },
 }
 
 impl IntoResponse for ChargingError {
@@ -49,6 +63,10 @@ impl IntoResponse for ChargingError {
             ChargingError::InvalidInput(_) => (StatusCode::BAD_REQUEST, "Invalid input"),
             ChargingError::SerializationError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Serialization error"),
             ChargingError::InternalError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal error"),
+            ChargingError::BundleNotFound(_) => (StatusCode::NOT_FOUND, "Bundle not found"),
+            ChargingError::BundleAlreadyActive => (StatusCode::CONFLICT, "Bundle already active"),
+            ChargingError::InvalidBundleConfig(_) => (StatusCode::BAD_REQUEST, "Invalid bundle config"),
+            ChargingError::InsufficientAirtime { .. } => (StatusCode::PAYMENT_REQUIRED, "Insufficient airtime"),
         };
 
         let body = json!({
